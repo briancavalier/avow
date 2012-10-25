@@ -1,0 +1,13 @@
+{
+	"name": "avow",
+	"version": "0.1.0",
+	"description": "Don't use this",
+	"main": "avow",
+	"devDependencies": {
+		"promise-tests": ""
+	},
+	"scripts": {
+		"test": "promise-tests promises-a test/avow-adapter.js",
+		"test-all": "promise-tests all test/avow-adapter.js"
+	}
+}
