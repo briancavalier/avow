@@ -40,7 +40,7 @@ define(function() {
 		function fulfilled(value) {
 			return makePromise(function(fulfilled) {
 				var v = make();
-				v.resolve(value);
+				v.fulfill(value);
 				return v.promise.then(fulfilled);
 			});
 		}
@@ -49,7 +49,7 @@ define(function() {
 		function broken(reason) {
 			return makePromise(function(fulfilled, broken) {
 				var v = make();
-				v.reject(reason);
+				v.break(reason);
 				return v.promise.then(fulfilled, broken);
 			});
 		}
@@ -59,8 +59,8 @@ define(function() {
 			var vow, pending, bind;
 
 			vow = {
-				resolve: resolve,
-				reject: reject,
+				fulfill: fulfill,
+				'break': _break,
 				promise: makePromise(then)
 			};
 
@@ -68,7 +68,7 @@ define(function() {
 
 			bind = function(fulfilled, broken, vow) {
 				pending.push(function(apply, value) {
-					apply(value, fulfilled, broken, vow.resolve, vow.reject);
+					apply(value, fulfilled, broken, vow.fulfill, vow.break);
 				});
 			};
 
@@ -80,11 +80,11 @@ define(function() {
 				return vow.promise;
 			}
 
-			function resolve(value) {
+			function fulfill(value) {
 				applyAllPending(applyResolve, value);
 			}
 
-			function reject(reason) {
+			function _break(reason) {
 				applyAllPending(applyReject, reason);
 			}
 
@@ -98,7 +98,7 @@ define(function() {
 
 				bind = function(fulfilled, broken, vow) {
 					nextTick(function() {
-						apply(value, fulfilled, broken, vow.resolve, vow.reject);
+						apply(value, fulfilled, broken, vow.fulfill, vow.break);
 					});
 				};
 
