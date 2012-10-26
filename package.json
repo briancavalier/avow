@@ -7,7 +7,6 @@
 		"promise-tests": ""
 	},
 	"scripts": {
-		"test": "promise-tests promises-a test/avow-adapter.js",
-		"test-all": "promise-tests all test/avow-adapter.js"
+		"test": "promise-tests all test/avow-adapter.js"
 	}
 }

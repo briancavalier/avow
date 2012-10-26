@@ -56,12 +56,22 @@ define(function() {
 
 		// Create a new, pending promise
 		function make() {
-			var vow, pending, bind;
+			var vow, pending, bind, handled;
 
 			vow = {
-				fulfill: fulfill,
-				'break': _break,
-				promise: makePromise(then)
+				promise: makePromise(then),
+
+				fulfill: function(value) {
+					applyAllPending(applyResolve, value);
+				},
+
+				'break': function(reason) {
+					if(handled === false) {
+						handled = true;
+						unhandled(reason);
+					}
+					applyAllPending(applyReject, reason);
+				},
 			};
 
 			pending = [];
@@ -75,17 +85,11 @@ define(function() {
 			return vow;
 
 			function then(fulfilled, broken) {
+				handled = handled || typeof broken === 'function';
+
 				var vow = avow();
 				bind(fulfilled, broken, vow);
 				return vow.promise;
-			}
-
-			function fulfill(value) {
-				applyAllPending(applyResolve, value);
-			}
-
-			function _break(reason) {
-				applyAllPending(applyReject, reason);
 			}
 
 			function applyAllPending(apply, value) {
