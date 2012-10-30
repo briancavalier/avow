@@ -1,11 +1,6 @@
+/*global define:true, setImmediate:true*/
 (function(define) {
 define(function() {
-	/*global setImmediate:true define:true*/
-	/*jshint es5:true*/
-
-	// TODO:
-	// 1. Trap unhandled rejections
-	// 2. Provide a when() function
 
 	var avow, nextTick, defaultConfig, undef;
 
@@ -39,28 +34,26 @@ define(function() {
 
 		// Create a new, fulfilled promise
 		function fulfilled(value) {
-			return makePromise(function(onFulfilled) {
-				var v = pending();
-				v.fulfill(value);
-				return v.promise.then(onFulfilled);
-			});
+			var v = pending();
+			v.fulfill(value);
+			return v.promise;
 		}
 
 		// Create a new, rejected promise
 		function rejected(reason) {
-			return makePromise(function(onFulfilled, onRejected) {
-				var v = pending();
-				v.reject(reason);
-				return v.promise.then(onFulfilled, onRejected);
-			});
+			var v = pending();
+			v.reject(reason);
+			return v.promise;
 		}
 
 		// Create a new, pending promise
 		function pending() {
-			var vow, pending, bind, handled;
+			var vow, promise, pending, bind, handled;
+
+			promise = makePromise(then);
 
 			vow = {
-				promise: makePromise(then),
+				promise: promise,
 
 				fulfill: function(value) {
 					applyAllPending(applyFulfill, value);
@@ -69,7 +62,7 @@ define(function() {
 				reject: function(reason) {
 					if(handled === false) {
 						handled = true;
-						unhandled(reason);
+						unhandled(reason, promise);
 					}
 					applyAllPending(applyReject, reason);
 				}
