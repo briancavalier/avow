@@ -1,3 +1,4 @@
+/* Copyright (c) 2012 Brian Cavalier */
 /*global define:true, setImmediate:true*/
 (function(define) {
 define(function() {
