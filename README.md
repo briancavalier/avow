@@ -2,7 +2,7 @@
 
 Avow is a very tiny, very fast, fully asynchronous promise implementation.  It is less than 150 lines of code (sans UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be faster than most other synchronous implementations in many cases.
 
-It passes the Promises Test Suite, including all extensions.
+It passes the [Promises Test Suite](https://github.com/domenic/promise-tests), including all extensions.
 
 ## Why?
 
