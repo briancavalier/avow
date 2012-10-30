@@ -10,7 +10,7 @@ I wrote avow as a test bed for new ideas for [when.js](https://github.com/cujojs
 
 ## Can I use it?
 
-Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It is even faster (although currently it's resolutions are synchronous), and provides many more features, like dealing with collections of promises, competitive races, and timed promises.
+Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It is even faster (although currently its resolutions are synchronous), and provides many more features, like dealing with collections of promises, competitive races, and timed promises.
 
 ## *Should* I use it?
 
