@@ -1,7 +1,8 @@
 {
 	"name": "avow",
 	"version": "0.1.0",
-	"description": "Don't use this",
+	"description": "Example promise implementation. Simple, tiny, fast, fully async",
+	"keywords": ["promise", "promises", "async", "asynchronous", "deferred"],
 	"main": "avow",
 	"devDependencies": {
 		"promise-tests": ""
