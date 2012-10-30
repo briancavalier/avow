@@ -6,7 +6,7 @@ It passes the Promises Test Suite, including all extensions.
 
 ## Why?
 
-I wrote avow as a test bed for new ideas for [when.js](https://github.com/cujojs/when), [cujo.js](http://cujojs.com]'s full-featured promise implementation.  I also hope that it serves as a decent example implementation for others who might want to implement promises either as a learning exercise, or as a part of a project/library/framework.
+I wrote avow as a test bed for new ideas for [when.js](https://github.com/cujojs/when), [cujo.js](http://cujojs.com)'s full-featured promise implementation.  I also hope that it serves as a decent example implementation for others who might want to implement promises either as a learning exercise, or as a part of a project/library/framework.
 
 ## Can I use it?
 
