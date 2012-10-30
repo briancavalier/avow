@@ -6,8 +6,8 @@ exports.pending = function() {
 	return {
 		promise: v.promise,
 		fulfill: v.fulfill,
-		reject: v.break
+		reject: v.reject
 	};
 };
 exports.fulfilled = avow.fulfilled;
-exports.rejected = avow.broken;
+exports.rejected = avow.rejected;

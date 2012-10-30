@@ -1,6 +1,7 @@
 (function(define) {
 define(function() {
-	/*jshint es5:true setImmediate:true*/
+	/*global setImmediate:true define:true*/
+	/*jshint es5:true*/
 
 	// TODO:
 	// 1. Trap unhandled rejections
@@ -31,64 +32,64 @@ define(function() {
 		unhandled = config.unhandled || defaultConfig.unhandled;
 		protect = config.protect || defaultConfig.protect;
 
-		make.fulfilled = fulfilled;
-		make.broken = broken;
+		pending.fulfilled = fulfilled;
+		pending.rejected = rejected;
 
-		return make;
+		return pending;
 
 		// Create a new, fulfilled promise
 		function fulfilled(value) {
-			return makePromise(function(fulfilled) {
-				var v = make();
+			return makePromise(function(onFulfilled) {
+				var v = pending();
 				v.fulfill(value);
-				return v.promise.then(fulfilled);
+				return v.promise.then(onFulfilled);
 			});
 		}
 
-		// Create a new, broken promise
-		function broken(reason) {
-			return makePromise(function(fulfilled, broken) {
-				var v = make();
-				v.break(reason);
-				return v.promise.then(fulfilled, broken);
+		// Create a new, rejected promise
+		function rejected(reason) {
+			return makePromise(function(onFulfilled, onRejected) {
+				var v = pending();
+				v.reject(reason);
+				return v.promise.then(onFulfilled, onRejected);
 			});
 		}
 
 		// Create a new, pending promise
-		function make() {
+		function pending() {
 			var vow, pending, bind, handled;
 
 			vow = {
 				promise: makePromise(then),
 
 				fulfill: function(value) {
-					applyAllPending(applyResolve, value);
+					applyAllPending(applyFulfill, value);
 				},
 
-				'break': function(reason) {
+				reject: function(reason) {
 					if(handled === false) {
 						handled = true;
 						unhandled(reason);
 					}
 					applyAllPending(applyReject, reason);
-				},
+				}
 			};
 
 			pending = [];
 
-			bind = function(fulfilled, broken, vow) {
+			bind = function(onFulfilled, onRejected, vow) {
 				pending.push(function(apply, value) {
-					apply(value, fulfilled, broken, vow.fulfill, vow.break);
+					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 				});
 			};
 
 			return vow;
 
-			function then(fulfilled, broken) {
-				handled = handled || typeof broken === 'function';
+			function then(onFulfilled, onRejected) {
+				handled = handled || typeof onRejected === 'function';
 
 				var vow = avow();
-				bind(fulfilled, broken, vow);
+				bind(onFulfilled, onRejected, vow);
 				return vow.promise;
 			}
 
@@ -100,9 +101,9 @@ define(function() {
 				var bindings = pending;
 				pending = undef;
 
-				bind = function(fulfilled, broken, vow) {
+				bind = function(onFulfilled, onRejected, vow) {
 					nextTick(function() {
-						apply(value, fulfilled, broken, vow.fulfill, vow.break);
+						apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 					});
 				};
 
@@ -114,44 +115,37 @@ define(function() {
 			}
 		}
 
+		function applyFulfill(val, onFulfilled, _, fulfillNext, rejectNext) {
+			return apply(val, onFulfilled, fulfillNext, fulfillNext, rejectNext);
+		}
+
+		function applyReject(val, _, onRejected, fulfillNext, rejectNext) {
+			return apply(val, onRejected, rejectNext, fulfillNext, rejectNext);
+		}
+
+		function apply(val, handler, fallback, fulfillNext, rejectNext) {
+			var result;
+			try {
+				if(handler) {
+					result = handler(val);
+					if(result && typeof result.then === 'function') {
+						result.then(fulfillNext, rejectNext);
+					} else {
+						fulfillNext(result);
+					}
+
+				} else {
+					fallback(val);
+				}
+			} catch(e) {
+				rejectNext(e);
+			}
+		}
+
 		function makePromise(then) {
 			return protect({
 				then: then
 			});
-		}
-
-		function applyResolve(val, fulfilled, _, resolve, reject) {
-			apply(val, function(val) {
-				var result = fulfilled ? fulfilled(val) : val;
-				if(result && typeof result.then === 'function') {
-					result.then(resolve, reject);
-				} else {
-					resolve(result);
-				}
-			}, reject);
-		}
-
-		function applyReject(val, _, broken, resolve, reject) {
-			apply(val, function(val) {
-				if(broken) {
-					var result = broken(val);
-					if(result && typeof result.then === 'function') {
-						result.then(resolve, reject);
-					} else {
-						resolve(result);
-					}
-				} else {
-					reject(val);
-				}
-			}, reject);
-		}
-	}
-
-	function apply(val, f, fallback) {
-		try {
-			f(val);
-		} catch(e) {
-			fallback(e);
 		}
 	}
 
@@ -162,4 +156,4 @@ define(function() {
 	function noop() {}
 
 });
-})(typeof define === 'function' && define.amd? define : function(factory) { module.exports = factory(); });
+})(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); });
