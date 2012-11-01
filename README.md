@@ -1,6 +1,6 @@
 # avow
 
-Avow is a very tiny, very fast, fully asynchronous promise implementation.  It is less than 150 lines of code (sans UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
+Avow is a very tiny, very fast, fully asynchronous promise implementation.  It is less than 150 lines of code (sans UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
 It passes the [Promises Test Suite](https://github.com/domenic/promise-tests), including all extensions.
 
@@ -14,8 +14,52 @@ Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when
 
 ## *Should* I use it?
 
-Again, probably not.  I have no plans to support it in any way.  You're on your own.
+Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning.  You're on your own.
 
-# License
+## Ok, ok, if you want to try it out
+
+Download it, clone it, or `npm install git://github.com/briancavalier/avow.git`
+
+## The API
+
+```js
+var avow = require('avow');
+
+// Create a pending promise
+var vow = avow();
+
+// Fulfill it
+vow.fulfill(value);
+
+// Or reject it
+vow.reject(reason);
+
+// Create a fulfilled promise
+vow = avow.fulfilled(value);
+
+// Create a rejected promise
+vow = avow.rejected(reason);
+```
+
+## Make your own
+
+You can make your own custom configured instance of avow:
+
+```js
+var myAvow = require('avow').construct(options);
+```
+
+Where `options` is an object that can have any of the following properties:
+
+* `nextTick` - specify your own nextTick function
+* `unhandled` - callback to be notified when an unhandled rejection reaches the end of a promise chain.
+* `protect` - function that is called on every promise avow creates, to give you a chance to protect it, e.g. by supplying Object.freeze() here.
+
+## Running the tests
+
+1. `npm install`
+1. `npm test`
+
+## License
 
 MIT License, Copyright (c) 2012 Brian Cavalier

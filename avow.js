@@ -49,7 +49,7 @@ define(function() {
 
 		// Create a new, pending promise
 		function pending() {
-			var vow, promise, pending, bind, handled;
+			var vow, promise, pending, bindHandlers, handled;
 
 			promise = makePromise(then);
 
@@ -71,7 +71,7 @@ define(function() {
 
 			pending = [];
 
-			bind = function(onFulfilled, onRejected, vow) {
+			bindHandlers = function(onFulfilled, onRejected, vow) {
 				pending.push(function(apply, value) {
 					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 				});
@@ -83,7 +83,7 @@ define(function() {
 				handled = handled || typeof onRejected === 'function';
 
 				var vow = avow();
-				bind(onFulfilled, onRejected, vow);
+				bindHandlers(onFulfilled, onRejected, vow);
 				return vow.promise;
 			}
 
@@ -95,7 +95,7 @@ define(function() {
 				var bindings = pending;
 				pending = undef;
 
-				bind = function(onFulfilled, onRejected, vow) {
+				bindHandlers = function(onFulfilled, onRejected, vow) {
 					nextTick(function() {
 						apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 					});
@@ -122,6 +122,7 @@ define(function() {
 			try {
 				if(handler) {
 					result = handler(val);
+
 					if(result && typeof result.then === 'function') {
 						result.then(fulfillNext, rejectNext);
 					} else {
