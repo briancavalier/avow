@@ -5,29 +5,39 @@ define(function() {
 
 	var avow, nextTick, defaultConfig, undef;
 
+	// Use process.nextTick or setImmediate if available, fallback to setTimeout
 	nextTick = typeof process === 'object' ? process.nextTick
 		: typeof setImmediate === 'function' ? setImmediate
 		: function(task) { setTimeout(task, 0); };
 
+	// Default configuration
 	defaultConfig = {
 		nextTick: nextTick,
 		unhandled: noop,
 		protect: identity
 	};
 
+	// Create the default module instance
+	// This is what you get when you require('avow')
 	avow = constructAvow(defaultConfig);
+
+	// You can use require('avow').construct(options) to
+	// construct a custom configured version of avow
 	avow.construct = constructAvow;
 
 	return avow;
 
+	// This constructs configured instances of the avow module
 	function constructAvow(config) {
 
 		var nextTick, unhandled, protect;
 
+		// Grab the config params, use defaults where necessary
 		nextTick = config.nextTick || defaultConfig.nextTick;
 		unhandled = config.unhandled || defaultConfig.unhandled;
 		protect = config.protect || defaultConfig.protect;
 
+		// Add fulfilled and rejected methods. see below
 		pending.fulfilled = fulfilled;
 		pending.rejected = rejected;
 
@@ -53,6 +63,8 @@ define(function() {
 
 			promise = makePromise(then);
 
+			// Create a vow, which has a pending promise plus methods
+			// for fulfilling and rejecting the promise
 			vow = {
 				promise: promise,
 
@@ -69,8 +81,10 @@ define(function() {
 				}
 			};
 
+			// Queue of pending handlers, added via then()
 			pending = [];
 
+			// Arranges for handlers to be called on the eventual value or reason
 			bindHandlers = function(onFulfilled, onRejected, vow) {
 				pending.push(function(apply, value) {
 					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
@@ -79,6 +93,7 @@ define(function() {
 
 			return vow;
 
+			// Arrange for a handler to be called on the eventual value or reason
 			function then(onFulfilled, onRejected) {
 				handled = handled || typeof onRejected === 'function';
 
@@ -87,6 +102,7 @@ define(function() {
 				return vow.promise;
 			}
 
+			// When the promise is fulfilled or rejected, call all pending handlers
 			function applyAllPending(apply, value) {
 				if(!pending) {
 					return;
@@ -95,12 +111,15 @@ define(function() {
 				var bindings = pending;
 				pending = undef;
 
+				// The promise is no longer pending, so we can swap bindHandlers
+				// to something more direct
 				bindHandlers = function(onFulfilled, onRejected, vow) {
 					nextTick(function() {
 						apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
 					});
 				};
 
+				// Call all the pending handlers
 				nextTick(function() {
 					bindings.forEach(function(binding) {
 						binding(apply, value);
@@ -109,14 +128,18 @@ define(function() {
 			}
 		}
 
+		// Call fulfilled handler and fulfill the next promise in the chain
 		function applyFulfill(val, onFulfilled, _, fulfillNext, rejectNext) {
 			return apply(val, onFulfilled, fulfillNext, fulfillNext, rejectNext);
 		}
 
+		// Call rejected handler and fulfill the next promise in the chain
 		function applyReject(val, _, onRejected, fulfillNext, rejectNext) {
 			return apply(val, onRejected, rejectNext, fulfillNext, rejectNext);
 		}
 
+		// Call a handler with value, and take the appropriate action
+		// on the next promise in the chain
 		function apply(val, handler, fallback, fulfillNext, rejectNext) {
 			var result;
 			try {
@@ -137,6 +160,7 @@ define(function() {
 			}
 		}
 
+		// Make a thenable promise
 		function makePromise(then) {
 			return protect({
 				then: then

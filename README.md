@@ -1,6 +1,6 @@
 # avow
 
-Avow is a very tiny, very fast, fully asynchronous promise implementation.  It is less than 150 lines of code (sans UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
+Avow is a very tiny, very fast, fully asynchronous promise implementation.  It is less than 150 lines of code (sans comments and UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
 It passes the [Promises Test Suite](https://github.com/domenic/promise-tests), including all extensions.
 
