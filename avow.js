@@ -1,5 +1,4 @@
 /* Copyright (c) 2012 Brian Cavalier */
-/*global define:true, setImmediate:true*/
 (function(define) {
 define(function() {
 
@@ -104,6 +103,7 @@ define(function() {
 
 			// When the promise is fulfilled or rejected, call all pending handlers
 			function applyAllPending(apply, value) {
+				// Already fulfilled or rejected, ignore silently
 				if(!pending) {
 					return;
 				}
@@ -128,12 +128,12 @@ define(function() {
 			}
 		}
 
-		// Call fulfilled handler and fulfill the next promise in the chain
+		// Call fulfilled handler and forward to the next promise in the chain
 		function applyFulfill(val, onFulfilled, _, fulfillNext, rejectNext) {
 			return apply(val, onFulfilled, fulfillNext, fulfillNext, rejectNext);
 		}
 
-		// Call rejected handler and fulfill the next promise in the chain
+		// Call rejected handler and forward to the next promise in the chain
 		function applyReject(val, _, onRejected, fulfillNext, rejectNext) {
 			return apply(val, onRejected, rejectNext, fulfillNext, rejectNext);
 		}
