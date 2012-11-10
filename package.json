@@ -5,9 +5,9 @@
 	"keywords": ["promise", "promises", "async", "asynchronous", "deferred"],
 	"main": "avow",
 	"devDependencies": {
-		"promise-tests": ""
+		"promises-aplus-tests": "git://github.com/promises-aplus/promises-tests.git"
 	},
 	"scripts": {
-		"test": "promise-tests all test/avow-adapter.js"
+		"test": "promises-aplus-tests test/avow-adapter.js"
 	}
 }
