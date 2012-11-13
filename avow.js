@@ -143,7 +143,7 @@ define(function() {
 		function apply(val, handler, fallback, fulfillNext, rejectNext) {
 			var result;
 			try {
-				if(handler) {
+				if(typeof handler === 'function') {
 					result = handler(val);
 
 					if(result && typeof result.then === 'function') {
