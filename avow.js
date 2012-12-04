@@ -37,68 +37,59 @@ define(function() {
 		protect = config.protect || defaultConfig.protect;
 
 		// Add fulfilled and rejected methods. see below
-		pending.fulfilled = fulfilled;
-		pending.rejected = rejected;
+		avow.fulfilled = fulfilled;
+		avow.rejected  = rejected;
 
-		return pending;
+		return avow;
 
 		// Create a new, fulfilled promise
 		function fulfilled(value) {
-			var v = pending();
-			v.fulfill(value);
-			return v.promise;
+			return avow(function(fulfill) { fulfill(value); });
 		}
 
 		// Create a new, rejected promise
 		function rejected(reason) {
-			var v = pending();
-			v.reject(reason);
-			return v.promise;
+			return avow(function(_, reject) { reject(reason); });
 		}
 
 		// Create a new, pending promise
-		function pending() {
-			var vow, promise, pending, bindHandlers, handled;
+		function avow(makePromise) {
+			var promise, pending, bindHandlers, handled;
 
-			promise = makePromise(then);
+			// Queue of pending handlers, added via then()
+			pending = [];
 
-			// Create a vow, which has a pending promise plus methods
-			// for fulfilling and rejecting the promise
-			vow = {
-				promise: promise,
+			// Arranges for handlers to be called on the eventual value or reason
+			bindHandlers = function(onFulfilled, onRejected, fulfillNext, rejectNext) {
+				pending.push(function(apply, value) {
+					apply(value, onFulfilled, onRejected, fulfillNext, rejectNext);
+				});
+			};
 
-				fulfill: function(value) {
+			promise = createPromise(then);
+
+			makePromise(
+				function(value) {
 					applyAllPending(applyFulfill, value);
 				},
-
-				reject: function(reason) {
+				function(reason) {
 					if(handled === false) {
 						handled = true;
 						unhandled(reason, promise);
 					}
 					applyAllPending(applyReject, reason);
 				}
-			};
+			);
 
-			// Queue of pending handlers, added via then()
-			pending = [];
-
-			// Arranges for handlers to be called on the eventual value or reason
-			bindHandlers = function(onFulfilled, onRejected, vow) {
-				pending.push(function(apply, value) {
-					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
-				});
-			};
-
-			return vow;
+			return promise;
 
 			// Arrange for a handler to be called on the eventual value or reason
 			function then(onFulfilled, onRejected) {
 				handled = handled || typeof onRejected === 'function';
 
-				var vow = avow();
-				bindHandlers(onFulfilled, onRejected, vow);
-				return vow.promise;
+				return avow(function(fulfill, reject) {
+					bindHandlers(onFulfilled, onRejected, fulfill, reject);
+				});
 			}
 
 			// When the promise is fulfilled or rejected, call all pending handlers
@@ -113,9 +104,9 @@ define(function() {
 
 				// The promise is no longer pending, so we can swap bindHandlers
 				// to something more direct
-				bindHandlers = function(onFulfilled, onRejected, vow) {
+				bindHandlers = function(onFulfilled, onRejected, fulfillNext, rejectNext) {
 					nextTick(function() {
-						apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
+						apply(value, onFulfilled, onRejected, fulfillNext, rejectNext);
 					});
 				};
 
@@ -134,8 +125,8 @@ define(function() {
 		}
 
 		// Call rejected handler and forward to the next promise in the chain
-		function applyReject(val, _, onRejected, fulfillNext, rejectNext) {
-			return apply(val, onRejected, rejectNext, fulfillNext, rejectNext);
+		function applyReject(reason, _, onRejected, fulfillNext, rejectNext) {
+			return apply(reason, onRejected, rejectNext, fulfillNext, rejectNext);
 		}
 
 		// Call a handler with value, and take the appropriate action
@@ -160,8 +151,8 @@ define(function() {
 			}
 		}
 
-		// Make a thenable promise
-		function makePromise(then) {
+		// Create a thenable promise
+		function createPromise(then) {
 			return protect({
 				then: then
 			});
