@@ -55,7 +55,7 @@ Where `options` is an object that can have any of the following properties:
 * `unhandled` - callback to be notified when an unhandled rejection reaches the end of a promise chain.
 * `protect` - function that is called on every promise avow creates, to give you a chance to protect it, e.g. by supplying Object.freeze() here.
 
-## Running the tests
+## Running the Promises/A+ Test Suite
 
 1. `npm install`
 1. `npm test`
