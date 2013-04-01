@@ -1,4 +1,4 @@
-/* Copyright (c) 2012 Brian Cavalier */
+/* Copyright (c) 2012-2013 Brian Cavalier */
 (function(define) {
 define(function() {
 
@@ -10,22 +10,22 @@ define(function() {
 	// Use process.nextTick or setImmediate if available, fallback to setTimeout
 	nextTick = (function () {
 		var globalSetTimeout = setTimeout;
-		/*global setImmediate:true */
+		/*global window,setImmediate,process*/
 		return typeof setImmediate === 'function'
 			? typeof window === 'undefined'
-				   ? setImmediate
-				   : setImmediate.bind(window)
+				? setImmediate
+				: setImmediate.bind(window)
 			: typeof process === 'object'
-				   ? process.nextTick
-				   : function(task) { globalSetTimeout(task, 0); };
+				? process.nextTick
+				: function(task) { globalSetTimeout(task, 0); };
 	}());
 
 	// Default configuration
 	defaultConfig = {
+		nextTick:  nextTick,
 		unhandled: noop,
-		handled: noop,
-		protect: noop,
-		nextTick: nextTick
+		handled:   noop,
+		protect:   noop
 	};
 
 	// Create the default module instance
@@ -50,10 +50,10 @@ define(function() {
 		protect     = config.protect   || defaultConfig.protect;
 
 		// Add resolve and reject methods.
-		avow.from   = from;
-		avow.reject = reject;
+		promise.from   = from;
+		promise.reject = reject;
 
-		return avow;
+		return promise;
 
 		// Trusted promise constructor
 		function Promise(then) {
@@ -61,8 +61,8 @@ define(function() {
 			protect(this);
 		}
 
-		// Return a promise whose fate is determined by resolver
-		function avow(resolver) {
+		// Return a pending promise whose fate is determined by resolver
+		function promise(resolver) {
 			var value, handlers = [];
 
 			// Call the resolver to seal the promise's fate
@@ -75,30 +75,32 @@ define(function() {
 			// Return the promise
 			return new Promise(then);
 
-			function then(onFulfilled, onRejected, onProgress) {
-				return avow(function(resolve, reject, notify) {
+			// Register handlers with this promise
+			function then(onFulfilled, onRejected) {
+				return promise(function(resolve, reject) {
 					handlers
 						// Call handlers later, after resolution
 						? handlers.push(function(value) {
-						value.then(onFulfilled, onRejected, onProgress)
-							.then(resolve, reject, notify);
-					})
+							value.then(onFulfilled, onRejected).then(resolve, reject);
+						})
 						// Call handlers soon, but not in the current stack
 						: nextTick(function() {
-						value.then(onFulfilled, onRejected, onProgress)
-							.then(resolve, reject, notify);
-					});
+							value.then(onFulfilled, onRejected).then(resolve, reject);
+						});
 				});
 			}
 
+			// Resolve with a value, promise, or thenable
 			function promiseResolve(value) {
 				resolve(from(value));
 			}
 
+			// Reject with reason verbatim
 			function promiseReject(reason) {
 				resolve(reject(reason));
 			}
 
+			// For all handlers, run the Promise Resolution Procedure on this promise
 			function resolve(x) {
 				if(!handlers) {
 					return;
@@ -119,6 +121,11 @@ define(function() {
 			}
 		}
 
+		// Return a trusted promise for x, where
+		// - if x is a Promise, return it
+		// - if x is a value, return a promise that will eventually fulfill with x
+		// - if x is a thenable, assimilate it and return a promise whose fate
+		//   follows that of x.
 		function from(x) {
 			if(x instanceof Promise) {
 				return x;
@@ -126,7 +133,7 @@ define(function() {
 				return fulfilled(x);
 			}
 
-			return avow(function(resolve, reject) {
+			return promise(function(resolve, reject) {
 				nextTick(function() {
 					try {
 						// We must check and assimilate in the same tick, but not the
@@ -151,7 +158,7 @@ define(function() {
 		// Return a rejected promise
 		function reject(reason) {
 			return new Promise(function (_, onRejected) {
-				return avow(function(resolve, reject) {
+				return promise(function(resolve, reject) {
 					if(typeof onRejected == 'function') {
 						resolve(onRejected(reason));
 					} else {
@@ -161,6 +168,8 @@ define(function() {
 			});
 		}
 
+		// private
+		// create an already-fulfilled promise used to break assimilation recursion
 		function fulfilled(value) {
 			var self = new Promise(function (onFulfilled) {
 				try {

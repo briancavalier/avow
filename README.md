@@ -1,8 +1,8 @@
 # avow
 
-Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently forward compatible to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
+Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently *forward compatible* to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
 
-It is less than 150 lines of code (sans comments and UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
+It is around 150 lines of code (sans comments and UMD boilerplate), less than 600 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
 ## Why?
 
@@ -64,6 +64,7 @@ Where `options` is an object that can have any of the following properties:
 
 * `nextTick` - specify your own nextTick function
 * `unhandled` - callback to be notified when an unhandled rejection reaches the end of a promise chain.
+* `handled` - callback to be notified if, at some point, a previously unhandled rejected promise become handled.  Since promises are temporal, this can happen if a consumer adds a rejection handler using `then()` at some point after the promise has been rejected.
 * `protect` - function that is called on every promise avow creates, to give you a chance to protect it, e.g. by supplying Object.freeze() here.
 
 ## Running the Promises/A+ Test Suite
@@ -73,4 +74,4 @@ Where `options` is an object that can have any of the following properties:
 
 ## License
 
-MIT License, Copyright (c) 2012 Brian Cavalier
+MIT License, Copyright (c) 2012-2013 Brian Cavalier

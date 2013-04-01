@@ -5,9 +5,10 @@
 	"keywords": ["promise", "promises", "async", "asynchronous", "deferred"],
 	"main": "avow",
 	"devDependencies": {
-		"promises-aplus-tests": ""
+		"promises-aplus-tests": "",
+		"jshint": "~1"
 	},
 	"scripts": {
-		"test": "promises-aplus-tests test/avow-adapter.js"
+		"test": "jshint . && promises-aplus-tests test/avow-adapter.js"
 	}
 }
