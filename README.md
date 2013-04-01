@@ -1,6 +1,6 @@
 # avow
 
-Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).
+Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently forward compatible to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
 
 It is less than 150 lines of code (sans comments and UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
@@ -14,11 +14,11 @@ Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when
 
 ## *Should* I use it?
 
-Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning.  You're on your own.
+Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning like I did.  You're on your own.
 
 ## Ok, ok, if you want to try it out
 
-Download it, clone it, or `npm install git://github.com/briancavalier/avow.git`
+Download it, clone it, or `npm install avow`
 
 ## The API
 
@@ -26,18 +26,27 @@ Download it, clone it, or `npm install git://github.com/briancavalier/avow.git`
 var avow = require('avow');
 
 // Create a promise
-var promise = avow(function(fulfill, reject) {
+var promise = avow(function(resolve, reject) {
 	// ... do some work ...
 
-	// Fulfill the returned promise
-	fulfill(value);
+	// Resolve the returned promise with a value, another promise,
+	// or any well-behaved thenable.
+	resolve(value);
+	// resolve(anotherPromise);
+	// resolve(thenable);
 
 	// Or reject it
 	reject(reason);
 });
 
 // Create a fulfilled promise
-vow = avow.fulfilled(value);
+vow = avow.from(nonPromiseValue);
+
+// Create a promise whose fate follows another promise
+vow = avow.from(anotherPromise);
+
+// Attempt to assimilate and follow a well-behaved thenable's fate
+vow = avow.from(thenable);
 
 // Create a rejected promise
 vow = avow.rejected(reason);
