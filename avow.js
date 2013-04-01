@@ -1,5 +1,5 @@
 /* Copyright (c) 2012-2013 Brian Cavalier */
-(function(define) {
+(function(define, global) {
 define(function() {
 
 	var avow, nextTick, defaultConfig, call, fcall, undef;
@@ -12,9 +12,7 @@ define(function() {
 		var globalSetTimeout = setTimeout;
 		/*global window,setImmediate,process*/
 		return typeof setImmediate === 'function'
-			? typeof window === 'undefined'
-				? setImmediate
-				: setImmediate.bind(window)
+			? setImmediate.bind(global)
 			: typeof process === 'object'
 				? process.nextTick
 				: function(task) { globalSetTimeout(task, 0); };
@@ -63,7 +61,9 @@ define(function() {
 
 		// Return a pending promise whose fate is determined by resolver
 		function promise(resolver) {
-			var value, handlers = [];
+			var self, value, handled, handlers = [];
+
+			self = new Promise(then);
 
 			// Call the resolver to seal the promise's fate
 			try {
@@ -73,10 +73,15 @@ define(function() {
 			}
 
 			// Return the promise
-			return new Promise(then);
+			return self;
 
 			// Register handlers with this promise
 			function then(onFulfilled, onRejected) {
+				if (!handled) {
+					handled = true;
+					onHandled(self);
+				}
+
 				return promise(function(resolve, reject) {
 					handlers
 						// Call handlers later, after resolution
@@ -92,29 +97,34 @@ define(function() {
 
 			// Resolve with a value, promise, or thenable
 			function promiseResolve(value) {
+				if(!handlers) {
+					return;
+				}
+
 				resolve(from(value));
 			}
 
 			// Reject with reason verbatim
 			function promiseReject(reason) {
+				if(!handlers) {
+					return;
+				}
+
+				if(!handled) {
+					onUnhandled(self, reason);
+				}
+
 				resolve(reject(reason));
 			}
 
 			// For all handlers, run the Promise Resolution Procedure on this promise
 			function resolve(x) {
-				if(!handlers) {
-					return;
-				}
-
-				value = x;
-				runHandlers(handlers, value);
-
+				var queue = handlers;
 				handlers = undef;
-			}
+				value = x;
 
-			function runHandlers(handlers, value) {
-				nextTick(function() {
-					handlers.forEach(function(handler) {
+				nextTick(function () {
+					queue.forEach(function (handler) {
 						handler(value);
 					});
 				});
@@ -186,4 +196,4 @@ define(function() {
 	function noop() {}
 
 });
-})(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); });
+})(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }, this);
