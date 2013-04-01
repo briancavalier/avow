@@ -25,14 +25,16 @@ Download it, clone it, or `npm install git://github.com/briancavalier/avow.git`
 ```js
 var avow = require('avow');
 
-// Create a pending promise
-var vow = avow();
+// Create a promise
+var promise = avow(function(fulfill, reject) {
+	// ... do some work ...
 
-// Fulfill it
-vow.fulfill(value);
+	// Fulfill the returned promise
+	fulfill(value);
 
-// Or reject it
-vow.reject(reason);
+	// Or reject it
+	reject(reason);
+});
 
 // Create a fulfilled promise
 vow = avow.fulfilled(value);

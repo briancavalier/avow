@@ -2,18 +2,30 @@
 (function(define) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, undef;
+	var avow, nextTick, defaultConfig, call, fcall, undef;
+
+	call = Function.prototype.call;
+	fcall = call.bind(call);
 
 	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	nextTick = typeof process === 'object' ? process.nextTick
-		: typeof setImmediate === 'function' ? setImmediate
-		: function(task) { setTimeout(task, 0); };
+	nextTick = (function () {
+		var globalSetTimeout = setTimeout;
+		/*global setImmediate:true */
+		return typeof setImmediate === 'function'
+			? typeof window === 'undefined'
+				   ? setImmediate
+				   : setImmediate.bind(window)
+			: typeof process === 'object'
+				   ? process.nextTick
+				   : function(task) { globalSetTimeout(task, 0); };
+	}());
 
 	// Default configuration
 	defaultConfig = {
-		nextTick: nextTick,
 		unhandled: noop,
-		protect: identity
+		handled: noop,
+		protect: noop,
+		nextTick: nextTick
 	};
 
 	// Create the default module instance
@@ -29,147 +41,137 @@ define(function() {
 	// This constructs configured instances of the avow module
 	function constructAvow(config) {
 
-		var nextTick, unhandled, protect;
+		var nextTick, onHandled, onUnhandled, protect;
 
 		// Grab the config params, use defaults where necessary
-		nextTick = config.nextTick || defaultConfig.nextTick;
-		unhandled = config.unhandled || defaultConfig.unhandled;
-		protect = config.protect || defaultConfig.protect;
+		nextTick    = config.nextTick  || defaultConfig.nextTick;
+		onHandled   = config.handled   || defaultConfig.handled;
+		onUnhandled = config.unhandled || defaultConfig.unhandled;
+		protect     = config.protect   || defaultConfig.protect;
 
-		// Add fulfilled and rejected methods. see below
-		pending.fulfilled = fulfilled;
-		pending.rejected = rejected;
+		// Add resolve and reject methods.
+		avow.from   = from;
+		avow.reject = reject;
 
-		return pending;
+		return avow;
 
-		// Create a new, fulfilled promise
-		function fulfilled(value) {
-			var v = pending();
-			v.fulfill(value);
-			return v.promise;
+		// Trusted promise constructor
+		function Promise(then) {
+			this.then = then;
+			protect(this);
 		}
 
-		// Create a new, rejected promise
-		function rejected(reason) {
-			var v = pending();
-			v.reject(reason);
-			return v.promise;
-		}
+		// Return a promise whose fate is determined by resolver
+		function avow(resolver) {
+			var value, handlers = [];
 
-		// Create a new, pending promise
-		function pending() {
-			var vow, promise, pending, bindHandlers, handled;
-
-			promise = makePromise(then);
-
-			// Create a vow, which has a pending promise plus methods
-			// for fulfilling and rejecting the promise
-			vow = {
-				promise: promise,
-
-				fulfill: function(value) {
-					applyAllPending(applyFulfill, value);
-				},
-
-				reject: function(reason) {
-					if(handled === false) {
-						handled = true;
-						unhandled(reason, promise);
-					}
-					applyAllPending(applyReject, reason);
-				}
-			};
-
-			// Queue of pending handlers, added via then()
-			pending = [];
-
-			// Arranges for handlers to be called on the eventual value or reason
-			bindHandlers = function(onFulfilled, onRejected, vow) {
-				pending.push(function(apply, value) {
-					apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
-				});
-			};
-
-			return vow;
-
-			// Arrange for a handler to be called on the eventual value or reason
-			function then(onFulfilled, onRejected) {
-				handled = handled || typeof onRejected === 'function';
-
-				var vow = avow();
-				bindHandlers(onFulfilled, onRejected, vow);
-				return vow.promise;
+			// Call the resolver to seal the promise's fate
+			try {
+				resolver(promiseResolve, promiseReject);
+			} catch(e) {
+				promiseReject(e);
 			}
 
-			// When the promise is fulfilled or rejected, call all pending handlers
-			function applyAllPending(apply, value) {
-				// Already fulfilled or rejected, ignore silently
-				if(!pending) {
+			// Return the promise
+			return new Promise(then);
+
+			function then(onFulfilled, onRejected, onProgress) {
+				return avow(function(resolve, reject, notify) {
+					handlers
+						// Call handlers later, after resolution
+						? handlers.push(function(value) {
+						value.then(onFulfilled, onRejected, onProgress)
+							.then(resolve, reject, notify);
+					})
+						// Call handlers soon, but not in the current stack
+						: nextTick(function() {
+						value.then(onFulfilled, onRejected, onProgress)
+							.then(resolve, reject, notify);
+					});
+				});
+			}
+
+			function promiseResolve(value) {
+				resolve(from(value));
+			}
+
+			function promiseReject(reason) {
+				resolve(reject(reason));
+			}
+
+			function resolve(x) {
+				if(!handlers) {
 					return;
 				}
 
-				var bindings = pending;
-				pending = undef;
+				value = x;
+				runHandlers(handlers, value);
 
-				// The promise is no longer pending, so we can swap bindHandlers
-				// to something more direct
-				bindHandlers = function(onFulfilled, onRejected, vow) {
-					nextTick(function() {
-						apply(value, onFulfilled, onRejected, vow.fulfill, vow.reject);
-					});
-				};
+				handlers = undef;
+			}
 
-				// Call all the pending handlers
+			function runHandlers(handlers, value) {
 				nextTick(function() {
-					bindings.forEach(function(binding) {
-						binding(apply, value);
+					handlers.forEach(function(handler) {
+						handler(value);
 					});
 				});
 			}
 		}
 
-		// Call fulfilled handler and forward to the next promise in the chain
-		function applyFulfill(val, onFulfilled, _, fulfillNext, rejectNext) {
-			return apply(val, onFulfilled, fulfillNext, fulfillNext, rejectNext);
-		}
-
-		// Call rejected handler and forward to the next promise in the chain
-		function applyReject(val, _, onRejected, fulfillNext, rejectNext) {
-			return apply(val, onRejected, rejectNext, fulfillNext, rejectNext);
-		}
-
-		// Call a handler with value, and take the appropriate action
-		// on the next promise in the chain
-		function apply(val, handler, fallback, fulfillNext, rejectNext) {
-			var result;
-			try {
-				if(typeof handler === 'function') {
-					result = handler(val);
-
-					if(result && typeof result.then === 'function') {
-						result.then(fulfillNext, rejectNext);
-					} else {
-						fulfillNext(result);
-					}
-
-				} else {
-					fallback(val);
-				}
-			} catch(e) {
-				rejectNext(e);
+		function from(x) {
+			if(x instanceof Promise) {
+				return x;
+			} else if (x !== Object(x)) {
+				return fulfilled(x);
 			}
-		}
 
-		// Make a thenable promise
-		function makePromise(then) {
-			return protect({
-				then: then
+			return avow(function(resolve, reject) {
+				nextTick(function() {
+					try {
+						// We must check and assimilate in the same tick, but not the
+						// current tick, careful only to access promiseOrValue.then once.
+						var untrustedThen = x.then;
+
+						if(typeof untrustedThen === 'function') {
+							fcall(untrustedThen, x, resolve, reject);
+						} else {
+							// It's a value, create a fulfilled wrapper
+							resolve(fulfilled(x));
+						}
+
+					} catch(e) {
+						// Something went wrong, reject
+						reject(e);
+					}
+				});
 			});
 		}
-	}
 
-	function identity(x) {
-		return x;
+		// Return a rejected promise
+		function reject(reason) {
+			return new Promise(function (_, onRejected) {
+				return avow(function(resolve, reject) {
+					if(typeof onRejected == 'function') {
+						resolve(onRejected(reason));
+					} else {
+						reject(reason);
+					}
+				});
+			});
+		}
+
+		function fulfilled(value) {
+			var self = new Promise(function (onFulfilled) {
+				try {
+					return typeof onFulfilled == 'function' ? from(onFulfilled(value)) : self;
+				} catch (e) {
+					return reject(e);
+				}
+			});
+
+			return self;
+		}
 	}
 
 	function noop() {}
