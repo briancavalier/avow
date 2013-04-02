@@ -2,10 +2,17 @@
 (function(define, global) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, call, fcall, undef;
+	var avow, nextTick, defaultConfig, bind, uncurryThis, call, apply,
+		arrayProto, reduce, undef;
 
-	call = Function.prototype.call;
-	fcall = call.bind(call);
+	bind = Function.prototype.bind;
+	uncurryThis = bind.bind(bind.call);
+
+	call = uncurryThis(bind.call);
+	apply = uncurryThis(bind.apply);
+
+	arrayProto = Array.prototype;
+	reduce = uncurryThis(arrayProto.reduce);
 
 	// Use process.nextTick or setImmediate if available, fallback to setTimeout
 	nextTick = (function () {
@@ -48,8 +55,14 @@ define(function() {
 		protect     = config.protect   || defaultConfig.protect;
 
 		// Add resolve and reject methods.
-		promise.from   = from;
+		promise.lift   = lift;
 		promise.reject = reject;
+
+		promise.all    = all;
+		promise.any    = any;
+		promise.settle = settle;
+
+		promise.fmap   = fmap;
 
 		return promise;
 
@@ -101,7 +114,7 @@ define(function() {
 					return;
 				}
 
-				resolve(from(value));
+				resolve(lift(value));
 			}
 
 			// Reject with reason verbatim
@@ -136,7 +149,7 @@ define(function() {
 		// - if x is a value, return a promise that will eventually fulfill with x
 		// - if x is a thenable, assimilate it and return a promise whose fate
 		//   follows that of x.
-		function from(x) {
+		function lift(x) {
 			if(x instanceof Promise) {
 				return x;
 			} else if (x !== Object(x)) {
@@ -151,12 +164,11 @@ define(function() {
 						var untrustedThen = x.then;
 
 						if(typeof untrustedThen === 'function') {
-							fcall(untrustedThen, x, resolve, reject);
+							call(untrustedThen, x, resolve, reject);
 						} else {
 							// It's a value, create a fulfilled wrapper
 							resolve(fulfilled(x));
 						}
-
 					} catch(e) {
 						// Something went wrong, reject
 						reject(e);
@@ -180,10 +192,11 @@ define(function() {
 
 		// private
 		// create an already-fulfilled promise used to break assimilation recursion
-		function fulfilled(value) {
+		function fulfilled(x) {
 			var self = new Promise(function (onFulfilled) {
 				try {
-					return typeof onFulfilled == 'function' ? from(onFulfilled(value)) : self;
+					return typeof onFulfilled == 'function'
+						? lift(onFulfilled(x)) : self;
 				} catch (e) {
 					return reject(e);
 				}
@@ -191,6 +204,79 @@ define(function() {
 
 			return self;
 		}
+
+		// Return a promise that will fulfill after all promises in array
+		// have fulfilled, or will reject after one promise in array rejects
+		function all(array) {
+			return lift(array).then(function(array) {
+				return promise(function(resolve, reject) {
+					var count = 0, results = [];
+
+					reduce(array, function(results, p, i) {
+						++count;
+						lift(p).then(addResult.bind(undef, i), reject);
+						return results;
+					}, results);
+
+					function addResult(index, x) {
+						results[index] = x;
+						if(!--count) {
+							resolve(results);
+						}
+					}
+				});
+			});
+		}
+
+		// Return a promise that will fulfill after one promise in array
+		// is fulfilled, or will reject after all promises in array have rejected
+		function any(array) {
+			return lift(array).then(function(array) {
+				return promise(function(resolve, reject) {
+					var count = 0, results = [];
+
+					reduce(array, function(results, p, i) {
+						++count;
+						lift(p).then(resolve, addResult.bind(undef, i));
+						return results;
+					}, results);
+
+					function addResult(index, x) {
+						results[index] = x;
+						if(!--count) {
+							reject(results);
+						}
+					}
+				});
+			});
+		}
+
+		// Return a promise that will fulfill with an array of objects, each
+		// with a 'value' or 'reason' property corresponding to the fulfillment
+		// value or rejection reason of the
+		function settle(array) {
+			return lift(array).then(function(array) {
+				return all(array.map(function(item) {
+					return lift(item).then(toValue, toReason);
+				}));
+			});
+		}
+
+		// Return a function that accepts promises as arguments and
+		// returns a promise.
+		function fmap(f) {
+			return function() {
+				return all(arguments).then(apply.bind(f, undef));
+			};
+		}
+	}
+
+	function toValue(x) {
+		return { value: x };
+	}
+
+	function toReason(x) {
+		return { reason: x };
 	}
 
 	function noop() {}
