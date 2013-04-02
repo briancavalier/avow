@@ -123,7 +123,7 @@ define(function() {
 					return;
 				}
 
-				resolve(lift(value));
+				resolve(coerce(value));
 			}
 
 			// Reject with reason verbatim
@@ -153,36 +153,13 @@ define(function() {
 			}
 		}
 
-		// Return a trusted promise for x, where
-		// - if x is a Promise, return it
-		// - if x is a value, return a promise that will eventually fulfill with x
-		// - if x is a thenable, assimilate it and return a promise whose fate
-		//   follows that of x.
+		// Return a trusted promise for x.  Where if x is a
+		// - Promise, return it
+		// - value, return a promise that will eventually fulfill with x
+		// - thenable, assimilate it and return a promise whose fate follows that of x.
 		function lift(x) {
-			if(x instanceof Promise) {
-				return x;
-			} else if (x !== Object(x)) {
-				return fulfilled(x);
-			}
-
-			return promise(function(resolve, reject) {
-				nextTick(function() {
-					try {
-						// We must check and assimilate in the same tick, but not the
-						// current tick, careful only to access promiseOrValue.then once.
-						var untrustedThen = x.then;
-
-						if(typeof untrustedThen === 'function') {
-							call(untrustedThen, x, resolve, reject);
-						} else {
-							// It's a value, create a fulfilled wrapper
-							resolve(fulfilled(x));
-						}
-					} catch(e) {
-						// Something went wrong, reject
-						reject(e);
-					}
-				});
+			return promise(function(resolve) {
+				resolve(x);
 			});
 		}
 
@@ -201,7 +178,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						lift(p).then(addResult.bind(undef, i), reject);
+						coerce(p).then(addResult.bind(undef, i), reject);
 						return count + 1;
 					}, 0);
 
@@ -223,7 +200,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						lift(p).then(resolve, addResult.bind(undef, i));
+						coerce(p).then(resolve, addResult.bind(undef, i));
 						return count + 1;
 					}, 0);
 
@@ -243,7 +220,7 @@ define(function() {
 		function settle(array) {
 			return lift(array).then(function(array) {
 				return all(map(array, function(item) {
-					return lift(item).then(toValue, toReason);
+					return coerce(item).then(toValue, toReason);
 				}));
 			});
 		}
@@ -282,12 +259,42 @@ define(function() {
 		}
 
 		// private
+		// Coerce x to a promise
+		function coerce(x) {
+			if(x instanceof Promise) {
+				return x;
+			} else if (x !== Object(x)) {
+				return fulfilled(x);
+			}
+
+			return promise(function(resolve, reject) {
+				nextTick(function() {
+					try {
+						// We must check and assimilate in the same tick, but not the
+						// current tick, careful only to access promiseOrValue.then once.
+						var untrustedThen = x.then;
+
+						if(typeof untrustedThen === 'function') {
+							call(untrustedThen, x, resolve, reject);
+						} else {
+							// It's a value, create a fulfilled wrapper
+							resolve(fulfilled(x));
+						}
+					} catch(e) {
+						// Something went wrong, reject
+						reject(e);
+					}
+				});
+			});
+		}
+
+		// private
 		// create an already-fulfilled promise used to break assimilation recursion
 		function fulfilled(x) {
 			var self = new Promise(function (onFulfilled) {
 				try {
 					return typeof onFulfilled == 'function'
-						? lift(onFulfilled(x)) : self;
+						? coerce(onFulfilled(x)) : self;
 				} catch (e) {
 					return rejected(e);
 				}
@@ -297,12 +304,12 @@ define(function() {
 		}
 
 		// private
-		// create an already-fulfilled promise used to break assimilation recursion
+		// create an already-reject promise
 		function rejected(x) {
 			var self = new Promise(function (_, onRejected) {
 				try {
 					return typeof onRejected == 'function'
-						? lift(onRejected(x)) : self;
+						? coerce(onRejected(x)) : self;
 				} catch (e) {
 					return rejected(e);
 				}
@@ -310,8 +317,6 @@ define(function() {
 
 			return self;
 		}
-
-
 	}
 
 	function toValue(x) {
