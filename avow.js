@@ -18,13 +18,18 @@ define(function() {
 
 	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
 	/*global setImmediate,process,vertx*/
-	setTimeout = global.setTimeout;
-	clearTimeout = global.clearTimeout;
+	if(typeof vertx === 'object') {
+		setTimeout = function (f, ms) { return vertx.setTimer(ms, f); };
+		clearTimeout = vertx.cancelTimer;
+	} else {
+		setTimeout = global.setTimeout;
+		clearTimeout = global.clearTimeout;
+	}
+
 	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
 		: typeof process === 'object' ? process.nextTick // Node
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
 			: function(task) { setTimeout(task, 0); }; // fallback
-
 
 	// Default configuration
 	defaultConfig = {
@@ -188,36 +193,6 @@ define(function() {
 			});
 		}
 
-		// private
-		// create an already-fulfilled promise used to break assimilation recursion
-		function fulfilled(x) {
-			var self = new Promise(function (onFulfilled) {
-				try {
-					return typeof onFulfilled == 'function'
-						? lift(onFulfilled(x)) : self;
-				} catch (e) {
-					return rejected(e);
-				}
-			});
-
-			return self;
-		}
-
-		// private
-		// create an already-fulfilled promise used to break assimilation recursion
-		function rejected(x) {
-			var self = new Promise(function (_, onRejected) {
-				try {
-					return typeof onRejected == 'function'
-						? lift(onRejected(x)) : self;
-				} catch (e) {
-					return rejected(e);
-				}
-			});
-
-			return self;
-		}
-
 		// Return a promise that will fulfill after all promises in array
 		// have fulfilled, or will reject after one promise in array rejects
 		function all(array) {
@@ -305,6 +280,38 @@ define(function() {
 				);
 			});
 		}
+
+		// private
+		// create an already-fulfilled promise used to break assimilation recursion
+		function fulfilled(x) {
+			var self = new Promise(function (onFulfilled) {
+				try {
+					return typeof onFulfilled == 'function'
+						? lift(onFulfilled(x)) : self;
+				} catch (e) {
+					return rejected(e);
+				}
+			});
+
+			return self;
+		}
+
+		// private
+		// create an already-fulfilled promise used to break assimilation recursion
+		function rejected(x) {
+			var self = new Promise(function (_, onRejected) {
+				try {
+					return typeof onRejected == 'function'
+						? lift(onRejected(x)) : self;
+				} catch (e) {
+					return rejected(e);
+				}
+			});
+
+			return self;
+		}
+
+
 	}
 
 	function toValue(x) {
