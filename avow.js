@@ -10,7 +10,7 @@ define(function() {
 	// Use process.nextTick or setImmediate if available, fallback to setTimeout
 	nextTick = (function () {
 		var globalSetTimeout = setTimeout;
-		/*global window,setImmediate,process*/
+		/*global setImmediate,process*/
 		return typeof setImmediate === 'function'
 			? setImmediate.bind(global)
 			: typeof process === 'object'
