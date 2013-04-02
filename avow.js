@@ -75,10 +75,21 @@ define(function() {
 
 		return promise;
 
-		// Trusted promise constructor
-		function Promise(then) {
-			this.then = then;
-			protect(this);
+		// Return a trusted promise for x.  Where if x is a
+		// - Promise, return it
+		// - value, return a promise that will eventually fulfill with x
+		// - thenable, assimilate it and return a promise whose fate follows that of x.
+		function lift(x) {
+			return promise(function(resolve) {
+				resolve(x);
+			});
+		}
+
+		// Return a rejected promise
+		function reject(reason) {
+			return promise(function(_, reject) {
+				reject(reason);
+			});
 		}
 
 		// Return a pending promise whose fate is determined by resolver
@@ -153,22 +164,7 @@ define(function() {
 			}
 		}
 
-		// Return a trusted promise for x.  Where if x is a
-		// - Promise, return it
-		// - value, return a promise that will eventually fulfill with x
-		// - thenable, assimilate it and return a promise whose fate follows that of x.
-		function lift(x) {
-			return promise(function(resolve) {
-				resolve(x);
-			});
-		}
-
-		// Return a rejected promise
-		function reject(reason) {
-			return promise(function(_, reject) {
-				reject(reason);
-			});
-		}
+		// Lists of promises
 
 		// Return a promise that will fulfill after all promises in array
 		// have fulfilled, or will reject after one promise in array rejects
@@ -225,6 +221,8 @@ define(function() {
 			});
 		}
 
+		// Functions
+
 		// Return a function that accepts promises as arguments and
 		// returns a promise.
 		function fmap(f) {
@@ -232,6 +230,8 @@ define(function() {
 				return all(arguments).then(apply.bind(f, undef));
 			};
 		}
+
+		// Timed promises
 
 		// Return a promise that delays ms before resolving
 		function delay(ms, result) {
@@ -245,7 +245,7 @@ define(function() {
 			return promise(function(resolve, reject) {
 				var handle = setTimeout(reject, ms);
 
-				lift(trigger).then(
+				coerce(trigger).then(
 					function(value) {
 						clearTimeout(handle);
 						resolve(value);
@@ -258,7 +258,14 @@ define(function() {
 			});
 		}
 
-		// private
+		// Private
+
+		// Trusted promise constructor
+		function Promise(then) {
+			this.then = then;
+			protect(this);
+		}
+
 		// Coerce x to a promise
 		function coerce(x) {
 			if(x instanceof Promise) {
@@ -288,7 +295,6 @@ define(function() {
 			});
 		}
 
-		// private
 		// create an already-fulfilled promise used to break assimilation recursion
 		function fulfilled(x) {
 			var self = new Promise(function (onFulfilled) {
@@ -303,8 +309,7 @@ define(function() {
 			return self;
 		}
 
-		// private
-		// create an already-reject promise
+		// create an already-rejected promise
 		function rejected(x) {
 			var self = new Promise(function (_, onRejected) {
 				try {
