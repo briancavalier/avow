@@ -2,8 +2,9 @@
 (function(define, global) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, bind, uncurryThis, call, apply,
-		arrayProto, reduce, undef;
+	var avow, nextTick, defaultConfig, setTimeout, clearTimeout,
+		bind, uncurryThis, call, apply, arrayProto, reduce, map,
+		undef;
 
 	bind = Function.prototype.bind;
 	uncurryThis = bind.bind(bind.call);
@@ -11,19 +12,19 @@ define(function() {
 	call = uncurryThis(bind.call);
 	apply = uncurryThis(bind.apply);
 
-	arrayProto = Array.prototype;
+	arrayProto = [];
 	reduce = uncurryThis(arrayProto.reduce);
+	map = uncurryThis(arrayProto.map);
 
-	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	nextTick = (function () {
-		var globalSetTimeout = setTimeout;
-		/*global setImmediate,process*/
-		return typeof setImmediate === 'function'
-			? setImmediate.bind(global)
-			: typeof process === 'object'
-				? process.nextTick
-				: function(task) { globalSetTimeout(task, 0); };
-	}());
+	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
+	/*global setImmediate,process,vertx*/
+	setTimeout = global.setTimeout;
+	clearTimeout = global.clearTimeout;
+	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
+		: typeof process === 'object' ? process.nextTick // Node
+		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
+			: function(task) { setTimeout(task, 0); }; // fallback
+
 
 	// Default configuration
 	defaultConfig = {
@@ -55,14 +56,17 @@ define(function() {
 		protect     = config.protect   || defaultConfig.protect;
 
 		// Add resolve and reject methods.
-		promise.lift   = lift;
-		promise.reject = reject;
+		promise.lift    = lift;
+		promise.reject  = reject;
 
-		promise.all    = all;
-		promise.any    = any;
-		promise.settle = settle;
+		promise.all     = all;
+		promise.any     = any;
+		promise.settle  = settle;
 
-		promise.fmap   = fmap;
+		promise.fmap    = fmap;
+
+		promise.delay   = delay;
+		promise.timeout = timeout;
 
 		return promise;
 
@@ -127,7 +131,7 @@ define(function() {
 					onUnhandled(self, reason);
 				}
 
-				resolve(reject(reason));
+				resolve(rejected(reason));
 			}
 
 			// For all handlers, run the Promise Resolution Procedure on this promise
@@ -179,14 +183,8 @@ define(function() {
 
 		// Return a rejected promise
 		function reject(reason) {
-			return new Promise(function (_, onRejected) {
-				return promise(function(resolve, reject) {
-					if(typeof onRejected == 'function') {
-						resolve(onRejected(reason));
-					} else {
-						reject(reason);
-					}
-				});
+			return promise(function(_, reject) {
+				reject(reason);
 			});
 		}
 
@@ -198,7 +196,22 @@ define(function() {
 					return typeof onFulfilled == 'function'
 						? lift(onFulfilled(x)) : self;
 				} catch (e) {
-					return reject(e);
+					return rejected(e);
+				}
+			});
+
+			return self;
+		}
+
+		// private
+		// create an already-fulfilled promise used to break assimilation recursion
+		function rejected(x) {
+			var self = new Promise(function (_, onRejected) {
+				try {
+					return typeof onRejected == 'function'
+						? lift(onRejected(x)) : self;
+				} catch (e) {
+					return rejected(e);
 				}
 			});
 
@@ -210,13 +223,12 @@ define(function() {
 		function all(array) {
 			return lift(array).then(function(array) {
 				return promise(function(resolve, reject) {
-					var count = 0, results = [];
+					var count, results = [];
 
-					reduce(array, function(results, p, i) {
-						++count;
+					count = reduce(array, function(count, p, i) {
 						lift(p).then(addResult.bind(undef, i), reject);
-						return results;
-					}, results);
+						return count + 1;
+					}, 0);
 
 					function addResult(index, x) {
 						results[index] = x;
@@ -233,13 +245,12 @@ define(function() {
 		function any(array) {
 			return lift(array).then(function(array) {
 				return promise(function(resolve, reject) {
-					var count = 0, results = [];
+					var count, results = [];
 
-					reduce(array, function(results, p, i) {
-						++count;
+					count = reduce(array, function(count, p, i) {
 						lift(p).then(resolve, addResult.bind(undef, i));
-						return results;
-					}, results);
+						return count + 1;
+					}, 0);
 
 					function addResult(index, x) {
 						results[index] = x;
@@ -256,7 +267,7 @@ define(function() {
 		// value or rejection reason of the
 		function settle(array) {
 			return lift(array).then(function(array) {
-				return all(array.map(function(item) {
+				return all(map(array, function(item) {
 					return lift(item).then(toValue, toReason);
 				}));
 			});
@@ -268,6 +279,31 @@ define(function() {
 			return function() {
 				return all(arguments).then(apply.bind(f, undef));
 			};
+		}
+
+		// Return a promise that delays ms before resolving
+		function delay(ms, result) {
+			return promise(function(resolve) {
+				setTimeout(resolve.bind(undef, result), ms);
+			});
+		}
+
+		// Return a promise that will reject after ms if not resolved first
+		function timeout(ms, trigger) {
+			return promise(function(resolve, reject) {
+				var handle = setTimeout(reject, ms);
+
+				lift(trigger).then(
+					function(value) {
+						clearTimeout(handle);
+						resolve(value);
+					},
+					function(reason) {
+						clearTimeout(handle);
+						reject(reason);
+					}
+				);
+			});
 		}
 	}
 
