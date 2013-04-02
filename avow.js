@@ -2,21 +2,19 @@
 (function(define, global) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, call, fcall, undef;
+	var avow, nextTick, defaultConfig, setTimeout, bind, uncurryThis, call, undef;
 
-	call = Function.prototype.call;
-	fcall = call.bind(call);
+	bind = Function.prototype.bind;
+	uncurryThis = bind.bind(bind.call);
+	call = uncurryThis(bind.call);
 
-	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	nextTick = (function () {
-		var globalSetTimeout = setTimeout;
-		/*global setImmediate,process*/
-		return typeof setImmediate === 'function'
-			? setImmediate.bind(global)
-			: typeof process === 'object'
-				? process.nextTick
-				: function(task) { globalSetTimeout(task, 0); };
-	}());
+	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
+	/*global setImmediate,process,vertx*/
+	setTimeout = global.setTimeout;
+	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
+		: typeof process === 'object' ? process.nextTick // Node
+		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
+			: function(task) { setTimeout(task, 0); }; // fallback
 
 	// Default configuration
 	defaultConfig = {
@@ -47,16 +45,27 @@ define(function() {
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
 
-		// Add resolve and reject methods.
-		promise.from   = from;
-		promise.reject = reject;
+		// Add lift and reject methods.
+		promise.lift    = lift;
+		promise.reject  = reject;
 
 		return promise;
 
-		// Trusted promise constructor
-		function Promise(then) {
-			this.then = then;
-			protect(this);
+		// Return a trusted promise for x.  Where if x is a
+		// - Promise, return it
+		// - value, return a promise that will eventually fulfill with x
+		// - thenable, assimilate it and return a promise whose fate follows that of x.
+		function lift(x) {
+			return promise(function(resolve) {
+				resolve(x);
+			});
+		}
+
+		// Return a rejected promise
+		function reject(reason) {
+			return promise(function(_, reject) {
+				reject(reason);
+			});
 		}
 
 		// Return a pending promise whose fate is determined by resolver
@@ -101,7 +110,7 @@ define(function() {
 					return;
 				}
 
-				resolve(from(value));
+				resolve(coerce(value));
 			}
 
 			// Reject with reason verbatim
@@ -114,7 +123,7 @@ define(function() {
 					onUnhandled(self, reason);
 				}
 
-				resolve(reject(reason));
+				resolve(rejected(reason));
 			}
 
 			// For all handlers, run the Promise Resolution Procedure on this promise
@@ -131,12 +140,16 @@ define(function() {
 			}
 		}
 
-		// Return a trusted promise for x, where
-		// - if x is a Promise, return it
-		// - if x is a value, return a promise that will eventually fulfill with x
-		// - if x is a thenable, assimilate it and return a promise whose fate
-		//   follows that of x.
-		function from(x) {
+		// Private
+
+		// Trusted promise constructor
+		function Promise(then) {
+			this.then = then;
+			protect(this);
+		}
+
+		// Coerce x to a promise
+		function coerce(x) {
 			if(x instanceof Promise) {
 				return x;
 			} else if (x !== Object(x)) {
@@ -151,12 +164,11 @@ define(function() {
 						var untrustedThen = x.then;
 
 						if(typeof untrustedThen === 'function') {
-							fcall(untrustedThen, x, resolve, reject);
+							call(untrustedThen, x, resolve, reject);
 						} else {
 							// It's a value, create a fulfilled wrapper
 							resolve(fulfilled(x));
 						}
-
 					} catch(e) {
 						// Something went wrong, reject
 						reject(e);
@@ -165,27 +177,28 @@ define(function() {
 			});
 		}
 
-		// Return a rejected promise
-		function reject(reason) {
-			return new Promise(function (_, onRejected) {
-				return promise(function(resolve, reject) {
-					if(typeof onRejected == 'function') {
-						resolve(onRejected(reason));
-					} else {
-						reject(reason);
-					}
-				});
-			});
-		}
-
-		// private
 		// create an already-fulfilled promise used to break assimilation recursion
-		function fulfilled(value) {
+		function fulfilled(x) {
 			var self = new Promise(function (onFulfilled) {
 				try {
-					return typeof onFulfilled == 'function' ? from(onFulfilled(value)) : self;
+					return typeof onFulfilled == 'function'
+						? coerce(onFulfilled(x)) : self;
 				} catch (e) {
-					return reject(e);
+					return rejected(e);
+				}
+			});
+
+			return self;
+		}
+
+		// create an already-rejected promise
+		function rejected(x) {
+			var self = new Promise(function (_, onRejected) {
+				try {
+					return typeof onRejected == 'function'
+						? coerce(onRejected(x)) : self;
+				} catch (e) {
+					return rejected(e);
 				}
 			});
 
