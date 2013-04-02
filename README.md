@@ -1,8 +1,8 @@
 # avow
 
-Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently *forward compatible* to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
+Avow is a tiny, fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently *forward compatible* to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
 
-It is around 150 lines of code (sans comments and UMD boilerplate), around than 600 *bytes* when closured+gzipped, supports unhandled rejection hooks for debugging, and is very fast in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
+It's around 150 lines of JS (sans comments, module boilerplate, and nextTick sniffing), under 650 bytes when closured+gzipped, supports unhandled rejection hooks for debugging, and is very fast in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
 ## Why?
 
@@ -10,7 +10,7 @@ I wrote avow as a stripped-down test bed for new ideas for [when.js](https://git
 
 ## Can I use it?
 
-Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It is even faster (although currently its resolutions are synchronous), and provides many more features, like dealing with collections of promises, competitive races, and timed promises.
+Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It is even faster and provides many more features, like dealing with collections of promises, competitive races, and timed promises.
 
 ## *Should* I use it?
 
@@ -40,15 +40,15 @@ var promise = avow(function(resolve, reject) {
 });
 
 // Create a fulfilled promise
-vow = avow.from(nonPromiseValue);
+vow = avow.lift(nonPromiseValue);
 
 // Create a promise whose fate follows another promise
-vow = avow.from(anotherPromise);
+vow = avow.lift(anotherPromise);
 
 // Attempt to assimilate and follow a well-behaved thenable's fate
-vow = avow.from(thenable);
+vow = avow.lift(thenable);
 
-// Create a rejected promise
+// Create a rejected promise that will use
 vow = avow.rejected(reason);
 ```
 
