@@ -147,7 +147,9 @@ define(function() {
 					result = handler(val);
 
 					if(result && typeof result.then === 'function') {
-						result.then(fulfillNext, rejectNext);
+            setImmediate(function(){
+              result.then(fulfillNext, rejectNext);
+            });
 					} else {
 						fulfillNext(result);
 					}
