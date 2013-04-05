@@ -2,7 +2,7 @@
 (function(define, global) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, setTimeout, bind, uncurryThis, call, undef;
+	var avow, enqueue, defaultConfig, setTimeout, bind, uncurryThis, call, undef;
 
 	bind = Function.prototype.bind;
 	uncurryThis = bind.bind(bind.call);
@@ -11,14 +11,14 @@ define(function() {
 	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
 	/*global setImmediate,process,vertx*/
 	setTimeout = global.setTimeout;
-	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
-		: typeof process === 'object' ? process.nextTick // Node
+	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
+		: typeof process === 'object' ? process.nextTick // Node < 0.9
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
 			: function(task) { setTimeout(task, 0); }; // fallback
 
 	// Default configuration
 	defaultConfig = {
-		nextTick:  nextTick,
+		enqueue:   enqueue,
 		unhandled: noop,
 		handled:   noop,
 		protect:   noop
@@ -37,10 +37,10 @@ define(function() {
 	// This constructs configured instances of the avow module
 	function constructAvow(config) {
 
-		var nextTick, onHandled, onUnhandled, protect;
+		var enqueue, onHandled, onUnhandled, protect;
 
 		// Grab the config params, use defaults where necessary
-		nextTick    = config.nextTick  || defaultConfig.nextTick;
+		enqueue     = config.enqueue   || defaultConfig.enqueue;
 		onHandled   = config.handled   || defaultConfig.handled;
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
@@ -98,7 +98,7 @@ define(function() {
 							value.then(onFulfilled, onRejected).then(resolve, reject);
 						})
 						// Call handlers soon, but not in the current stack
-						: nextTick(function() {
+						: enqueue(function() {
 							value.then(onFulfilled, onRejected).then(resolve, reject);
 						});
 				});
@@ -132,7 +132,7 @@ define(function() {
 				handlers = undef;
 				value = x;
 
-				nextTick(function () {
+				enqueue(function () {
 					queue.forEach(function (handler) {
 						handler(value);
 					});
@@ -157,7 +157,7 @@ define(function() {
 			}
 
 			return promise(function(resolve, reject) {
-				nextTick(function() {
+				enqueue(function() {
 					try {
 						// We must check and assimilate in the same tick, but not the
 						// current tick, careful only to access promiseOrValue.then once.
