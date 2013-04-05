@@ -2,7 +2,7 @@
 (function(define, global) {
 define(function() {
 
-	var avow, nextTick, defaultConfig, setTimeout, clearTimeout,
+	var avow, enqueue, defaultConfig, setTimeout, clearTimeout,
 		bind, uncurryThis, call, apply, arrayProto, reduce, map,
 		undef;
 
@@ -26,14 +26,16 @@ define(function() {
 		clearTimeout = global.clearTimeout;
 	}
 
-	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
-		: typeof process === 'object' ? process.nextTick // Node
+	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
+	/*global setImmediate,process,vertx*/
+	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
+		: typeof process === 'object' ? process.nextTick // Node < 0.9
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
 			: function(task) { setTimeout(task, 0); }; // fallback
 
 	// Default configuration
 	defaultConfig = {
-		nextTick:  nextTick,
+		enqueue:   enqueue,
 		unhandled: noop,
 		handled:   noop,
 		protect:   noop
@@ -52,15 +54,15 @@ define(function() {
 	// This constructs configured instances of the avow module
 	function constructAvow(config) {
 
-		var nextTick, onHandled, onUnhandled, protect;
+		var enqueue, onHandled, onUnhandled, protect;
 
 		// Grab the config params, use defaults where necessary
-		nextTick    = config.nextTick  || defaultConfig.nextTick;
+		enqueue     = config.enqueue   || defaultConfig.enqueue;
 		onHandled   = config.handled   || defaultConfig.handled;
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
 
-		// Add resolve and reject methods.
+		// Add lift and reject methods.
 		promise.lift    = lift;
 		promise.reject  = reject;
 
@@ -122,7 +124,7 @@ define(function() {
 							value.then(onFulfilled, onRejected).then(resolve, reject);
 						})
 						// Call handlers soon, but not in the current stack
-						: nextTick(function() {
+						: enqueue(function() {
 							value.then(onFulfilled, onRejected).then(resolve, reject);
 						});
 				});
@@ -156,7 +158,7 @@ define(function() {
 				handlers = undef;
 				value = x;
 
-				nextTick(function () {
+				enqueue(function () {
 					queue.forEach(function (handler) {
 						handler(value);
 					});
@@ -174,7 +176,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						coerce(p).then(addResult.bind(undef, i), reject);
+						lift(p).then(addResult.bind(undef, i), reject);
 						return count + 1;
 					}, 0);
 
@@ -196,7 +198,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						coerce(p).then(resolve, addResult.bind(undef, i));
+						lift(p).then(resolve, addResult.bind(undef, i));
 						return count + 1;
 					}, 0);
 
@@ -245,7 +247,7 @@ define(function() {
 			return promise(function(resolve, reject) {
 				var handle = setTimeout(reject, ms);
 
-				coerce(trigger).then(
+				lift(trigger).then(
 					function(value) {
 						clearTimeout(handle);
 						resolve(value);
@@ -275,7 +277,7 @@ define(function() {
 			}
 
 			return promise(function(resolve, reject) {
-				nextTick(function() {
+				enqueue(function() {
 					try {
 						// We must check and assimilate in the same tick, but not the
 						// current tick, careful only to access promiseOrValue.then once.
