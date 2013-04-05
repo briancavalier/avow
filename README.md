@@ -72,6 +72,17 @@ Where `options` is an object that can have any of the following properties:
 1. `npm install`
 1. `npm test`
 
+## Changelog
+
+### 2.0.0
+
+* New API (I warned you!)
+* Tracking forward compatibility with [Promises/A+](http://promises-aplus.github.com/promises-spec/) 1.1.0
+
+### 1.0.0
+
+* Initial release
+* [Promises/A+](http://promises-aplus.github.com/promises-spec/) 1.0.0 compliant
 ## License
 
 MIT License, Copyright (c) 2012-2013 Brian Cavalier
