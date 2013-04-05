@@ -12,7 +12,7 @@ define(function() {
 	/*global setImmediate,process,vertx*/
 	setTimeout = global.setTimeout;
 	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
-		: typeof process === 'object' ? process.nextTick // Node < 0.9
+		: typeof process === 'object' && process.nextTick ? process.nextTick
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
 			: function(task) { setTimeout(task, 0); }; // fallback
 
