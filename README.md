@@ -1,8 +1,9 @@
 # avow
 
-<a href="http://promises-aplus.github.com/promises-spec"><img src="http://promises-aplus.github.com/promises-spec/assets/logo-small.png" align="right" /></a>Avow is a very tiny, very fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).
+<a href="http://promises-aplus.github.com/promises-spec"><img src="http://promises-aplus.github.com/promises-spec/assets/logo-small.png" align="right" /></a>
+Avow is a tiny, fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently *forward compatible* to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
 
-It is less than 150 lines of code (sans comments and UMD boilerplate), less than 500 *bytes* when closured+gzipped, and in *very limited testing* appears to be as fast as or faster than most other synchronous implementations in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
+It's around 150 lines of JS (sans comments, module boilerplate, and nextTick sniffing), under 650 bytes when closured+gzipped, supports unhandled rejection hooks for debugging, and is very fast in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
 
 ## Why?
 
@@ -10,34 +11,45 @@ I wrote avow as a stripped-down test bed for new ideas for [when.js](https://git
 
 ## Can I use it?
 
-Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It provides many more features, like dealing with collections of promises, competitive races, and timed promises.
+Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when) instead.  It is even faster and provides many more features, like dealing with collections of promises, competitive races, and timed promises.
 
 ## *Should* I use it?
 
-Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning.  You're on your own.
+Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning like I did.  You're on your own.
 
 ## Ok, ok, if you want to try it out
 
-Download it, clone it, or `npm install git://github.com/briancavalier/avow.git`
+Download it, clone it, or `npm install avow`
 
 ## The API
 
 ```js
 var avow = require('avow');
 
-// Create a pending promise
-var vow = avow();
+// Create a promise
+var promise = avow(function(resolve, reject) {
+	// ... do some work ...
 
-// Fulfill it
-vow.fulfill(value);
+	// Resolve the returned promise with a value, another promise,
+	// or any well-behaved thenable.
+	resolve(value);
+	// resolve(anotherPromise);
+	// resolve(thenable);
 
-// Or reject it
-vow.reject(reason);
+	// Or reject it
+	reject(reason);
+});
 
 // Create a fulfilled promise
-vow = avow.fulfilled(value);
+vow = avow.lift(nonPromiseValue);
 
-// Create a rejected promise
+// Create a promise whose fate follows another promise
+vow = avow.lift(anotherPromise);
+
+// Attempt to assimilate and follow a well-behaved thenable's fate
+vow = avow.lift(thenable);
+
+// Create a rejected promise that will use
 vow = avow.rejected(reason);
 ```
 
@@ -52,7 +64,8 @@ var myAvow = require('avow').construct(options);
 Where `options` is an object that can have any of the following properties:
 
 * `nextTick` - specify your own nextTick function
-* `unhandled` - callback to be notified when an unhandled rejection reaches the end of a promise chain.
+* `unhandled` - callback to be notified when a promise becomes rejected, but has no rejection handler.
+* `handled` - callback to be notified if, at some point, a previously unhandled rejected promise become handled.  Since promises are temporal, this can happen if a consumer adds a rejection handler using `then()` at some point after the promise has been rejected.
 * `protect` - function that is called on every promise avow creates, to give you a chance to protect it, e.g. by supplying Object.freeze() here.
 
 ## Running the Promises/A+ Test Suite
@@ -60,6 +73,18 @@ Where `options` is an object that can have any of the following properties:
 1. `npm install`
 1. `npm test`
 
+## Changelog
+
+### 2.0.0
+
+* New API (I warned you!)
+* Tracking forward compatibility with [Promises/A+](http://promises-aplus.github.com/promises-spec/) 1.1.0
+
+### 1.0.0
+
+* Initial release
+* [Promises/A+](http://promises-aplus.github.com/promises-spec/) 1.0.0 compliant
+
 ## License
 
-MIT License, Copyright (c) 2012 Brian Cavalier
+MIT License, Copyright (c) 2012-2013 Brian Cavalier

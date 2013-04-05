@@ -3,10 +3,9 @@
 	"node": true,
 	"es5": true,
 
-	"predef": [
-        "define",
-        "setImmediate"
-    ],
+	"globals": {
+		"define": true
+	},
 
 	"boss": true,
 	"curly": true,
