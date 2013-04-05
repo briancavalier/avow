@@ -41,16 +41,16 @@ var promise = avow(function(resolve, reject) {
 });
 
 // Create a fulfilled promise
-vow = avow.lift(nonPromiseValue);
+promise = avow.lift(nonPromiseValue);
 
 // Create a promise whose fate follows another promise
-vow = avow.lift(anotherPromise);
+promise = avow.lift(anotherPromise);
 
 // Attempt to assimilate and follow a well-behaved thenable's fate
-vow = avow.lift(thenable);
+promise = avow.lift(thenable);
 
 // Create a rejected promise that will use
-vow = avow.rejected(reason);
+promise = avow.rejected(reason);
 ```
 
 ## Make your own

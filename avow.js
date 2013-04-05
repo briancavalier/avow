@@ -28,8 +28,8 @@ define(function() {
 
 	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
 	/*global setImmediate,process,vertx*/
-	enqueue = typeof setImmediate === 'function' ? bind(setImmediate, global)
-		: typeof process === 'object' ? process.nextTick // Node < 0.9
+	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
+		: typeof process === 'object' && process.nextTick ? process.nextTick
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
 			: function(task) { setTimer(task, 0); }; // fallback
 
