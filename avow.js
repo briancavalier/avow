@@ -2,7 +2,7 @@
 (function(define, global) {
 define(function() {
 
-	var avow, enqueue, defaultConfig, setTimeout, clearTimeout,
+	var avow, enqueue, defaultConfig, setTimer, clearTimer,
 		bind, uncurryThis, call, apply, arrayProto, reduce, map,
 		undef;
 
@@ -11,6 +11,7 @@ define(function() {
 
 	call = uncurryThis(bind.call);
 	apply = uncurryThis(bind.apply);
+	bind = uncurryThis(bind.bind);
 
 	arrayProto = [];
 	reduce = uncurryThis(arrayProto.reduce);
@@ -18,19 +19,19 @@ define(function() {
 
 	// Account for vertx timers
 	if(typeof vertx === 'object') {
-		setTimeout = function (f, ms) { return vertx.setTimer(ms, f); };
-		clearTimeout = vertx.cancelTimer;
+		setTimer = function (f, ms) { return vertx.setTimer(ms, f); };
+		clearTimer = vertx.cancelTimer;
 	} else {
-		setTimeout = global.setTimeout;
-		clearTimeout = global.clearTimeout;
+		setTimer = setTimeout;
+		clearTimer = clearTimeout;
 	}
 
 	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
 	/*global setImmediate,process,vertx*/
-	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
+	enqueue = typeof setImmediate === 'function' ? bind(setImmediate, global)
 		: typeof process === 'object' ? process.nextTick // Node < 0.9
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
-			: function(task) { setTimeout(task, 0); }; // fallback
+			: function(task) { setTimer(task, 0); }; // fallback
 
 	// Default configuration
 	defaultConfig = {
@@ -175,7 +176,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						lift(p).then(addResult.bind(undef, i), reject);
+						lift(p).then(bind(addResult, undef, i), reject);
 						return count + 1;
 					}, 0);
 
@@ -197,7 +198,7 @@ define(function() {
 					var count, results = [];
 
 					count = reduce(array, function(count, p, i) {
-						lift(p).then(resolve, addResult.bind(undef, i));
+						lift(p).then(resolve, bind(addResult, undef, i));
 						return count + 1;
 					}, 0);
 
@@ -228,7 +229,9 @@ define(function() {
 		// returns a promise.
 		function fmap(f) {
 			return function() {
-				return all(arguments).then(apply.bind(f, undef));
+				return all(arguments).then(function(args) {
+					return apply(f, undef, args);
+				});
 			};
 		}
 
@@ -237,22 +240,22 @@ define(function() {
 		// Return a promise that delays ms before resolving
 		function delay(ms, result) {
 			return promise(function(resolve) {
-				setTimeout(resolve.bind(undef, result), ms);
+				setTimer(function() { resolve(result); }, ms);
 			});
 		}
 
 		// Return a promise that will reject after ms if not resolved first
 		function timeout(ms, trigger) {
 			return promise(function(resolve, reject) {
-				var handle = setTimeout(reject, ms);
+				var handle = setTimer(reject, ms);
 
 				lift(trigger).then(
 					function(value) {
-						clearTimeout(handle);
+						clearTimer(handle);
 						resolve(value);
 					},
 					function(reason) {
-						clearTimeout(handle);
+						clearTimer(handle);
 						reject(reason);
 					}
 				);
