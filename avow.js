@@ -36,9 +36,9 @@ define(function() {
 	// Default configuration
 	defaultConfig = {
 		enqueue:   enqueue,
-		unhandled: noop,
-		handled:   noop,
-		protect:   noop
+		unhandled: identity,
+		handled:   identity,
+		protect:   identity
 	};
 
 	// Create the default module instance
@@ -62,18 +62,19 @@ define(function() {
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
 
-		// Add lift and reject methods.
-		promise.lift    = lift;
-		promise.reject  = reject;
+		// Public API methods
+		promise.lift     = lift;
+		promise.reject   = reject;
 
-		promise.all     = all;
-		promise.any     = any;
-		promise.settle  = settle;
+		promise.all      = all;
+		promise.any      = any;
+		promise.settle   = settle;
 
-		promise.fmap    = fmap;
+		promise.fmapWith = fmapWith;
+		promise.fmap     = bind(fmapWith, promise, identity);
 
-		promise.delay   = delay;
-		promise.timeout = timeout;
+		promise.delay    = delay;
+		promise.timeout  = timeout;
 
 		return promise;
 
@@ -217,20 +218,22 @@ define(function() {
 		// or rejection reason of the promise at the same index in the input array
 		function settle(array) {
 			return lift(array).then(function(array) {
-				return all(map(array, function(item) {
-					return coerce(item).then(toValue, toReason);
+				return all(map(array, function(x) {
+					return coerce(x).then(toFulfilledState, toRejectedState);
 				}));
 			});
 		}
 
 		// Functions
 
-		// Return a function that accepts promises as arguments and
-		// returns a promise.
-		function fmap(f) {
+		// Returns a function that accepts promises as arguments and
+		// returns a promise.  fcall is used to invoke f in
+		function fmapWith(fmapper, f) {
+			f = fmapper(f);
 			return function() {
+				var self = this;
 				return all(arguments).then(function(args) {
-					return apply(f, undef, args);
+					return apply(f, self, args);
 				});
 			};
 		}
@@ -328,15 +331,15 @@ define(function() {
 		}
 	}
 
-	function toValue(x) {
-		return { value: x };
+	function toFulfilledState(x) {
+		return { state: 'fulfilled', value: x };
 	}
 
-	function toReason(x) {
-		return { reason: x };
+	function toRejectedState(x) {
+		return { state: 'rejected', reason: x };
 	}
 
-	function noop() {}
+	function identity(x) { return x; }
 
 });
 })(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }, this);
