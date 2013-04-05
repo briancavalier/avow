@@ -1,5 +1,6 @@
 # avow
 
+<a href="http://promises-aplus.github.com/promises-spec"><img src="http://promises-aplus.github.com/promises-spec/assets/logo-small.png" align="right" /></a>
 Avow is a tiny, fast, fully asynchronous [Promises/A+](https://github.com/promises-aplus/promises-spec) implementation, and passes the [Promises/A+ Test Suite](https://github.com/promises-aplus/promises-tests).  It tracks Promises/A+ and is currently *forward compatible* to the upcoming revision Promises/A+ (likely to be versioned 1.1.0).
 
 It's around 150 lines of JS (sans comments, module boilerplate, and nextTick sniffing), under 650 bytes when closured+gzipped, supports unhandled rejection hooks for debugging, and is very fast in environments where a fast `nextTick` is available.  It uses `process.nextTick` or `setImmediate` if available (you can use [NobleJS's setImmediate polyfill](https://github.com/NobleJS/setImmediate)), and will fall back to `setTimeout` (srsly, use the polyfill) otherwise.
