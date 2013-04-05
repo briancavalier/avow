@@ -19,7 +19,7 @@ Again, probably not.  I have no plans to support it in any way.  I'll probably c
 
 ## Ok, ok, if you want to try it out
 
-Download it, clone it, or `npm install avow`
+It requires ES5, and either an AMD or CommonJS modular environment. Download it, clone it, or `npm install avow`.
 
 ## The API
 

@@ -2,15 +2,32 @@
 (function(define, global) {
 define(function() {
 
-	var avow, enqueue, defaultConfig, setTimeout, bind, uncurryThis, call, undef;
+	var avow, enqueue, defaultConfig, setTimeout, clearTimeout,
+		bind, uncurryThis, call, apply, arrayProto, reduce, map,
+		undef;
 
 	bind = Function.prototype.bind;
 	uncurryThis = bind.bind(bind.call);
+
 	call = uncurryThis(bind.call);
+	apply = uncurryThis(bind.apply);
+
+	arrayProto = [];
+	reduce = uncurryThis(arrayProto.reduce);
+	map = uncurryThis(arrayProto.map);
 
 	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
 	/*global setImmediate,process,vertx*/
-	setTimeout = global.setTimeout;
+	if(typeof vertx === 'object') {
+		setTimeout = function (f, ms) { return vertx.setTimer(ms, f); };
+		clearTimeout = vertx.cancelTimer;
+	} else {
+		setTimeout = global.setTimeout;
+		clearTimeout = global.clearTimeout;
+	}
+
+	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
+	/*global setImmediate,process,vertx*/
 	enqueue = typeof setImmediate === 'function' ? setImmediate.bind(global)
 		: typeof process === 'object' ? process.nextTick // Node < 0.9
 		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
@@ -48,6 +65,15 @@ define(function() {
 		// Add lift and reject methods.
 		promise.lift    = lift;
 		promise.reject  = reject;
+
+		promise.all     = all;
+		promise.any     = any;
+		promise.settle  = settle;
+
+		promise.fmap    = fmap;
+
+		promise.delay   = delay;
+		promise.timeout = timeout;
 
 		return promise;
 
@@ -140,6 +166,100 @@ define(function() {
 			}
 		}
 
+		// Lists of promises
+
+		// Return a promise that will fulfill after all promises in array
+		// have fulfilled, or will reject after one promise in array rejects
+		function all(array) {
+			return lift(array).then(function(array) {
+				return promise(function(resolve, reject) {
+					var count, results = [];
+
+					count = reduce(array, function(count, p, i) {
+						lift(p).then(addResult.bind(undef, i), reject);
+						return count + 1;
+					}, 0);
+
+					function addResult(index, x) {
+						results[index] = x;
+						if(!--count) {
+							resolve(results);
+						}
+					}
+				});
+			});
+		}
+
+		// Return a promise that will fulfill after one promise in array
+		// is fulfilled, or will reject after all promises in array have rejected
+		function any(array) {
+			return lift(array).then(function(array) {
+				return promise(function(resolve, reject) {
+					var count, results = [];
+
+					count = reduce(array, function(count, p, i) {
+						lift(p).then(resolve, addResult.bind(undef, i));
+						return count + 1;
+					}, 0);
+
+					function addResult(index, x) {
+						results[index] = x;
+						if(!--count) {
+							reject(results);
+						}
+					}
+				});
+			});
+		}
+
+		// Return a promise that will fulfill with an array of objects, each
+		// with a 'value' or 'reason' property corresponding to the fulfillment
+		// value or rejection reason of the
+		function settle(array) {
+			return lift(array).then(function(array) {
+				return all(map(array, function(item) {
+					return coerce(item).then(toValue, toReason);
+				}));
+			});
+		}
+
+		// Functions
+
+		// Return a function that accepts promises as arguments and
+		// returns a promise.
+		function fmap(f) {
+			return function() {
+				return all(arguments).then(apply.bind(f, undef));
+			};
+		}
+
+		// Timed promises
+
+		// Return a promise that delays ms before resolving
+		function delay(ms, result) {
+			return promise(function(resolve) {
+				setTimeout(resolve.bind(undef, result), ms);
+			});
+		}
+
+		// Return a promise that will reject after ms if not resolved first
+		function timeout(ms, trigger) {
+			return promise(function(resolve, reject) {
+				var handle = setTimeout(reject, ms);
+
+				lift(trigger).then(
+					function(value) {
+						clearTimeout(handle);
+						resolve(value);
+					},
+					function(reason) {
+						clearTimeout(handle);
+						reject(reason);
+					}
+				);
+			});
+		}
+
 		// Private
 
 		// Trusted promise constructor
@@ -204,6 +324,14 @@ define(function() {
 
 			return self;
 		}
+	}
+
+	function toValue(x) {
+		return { value: x };
+	}
+
+	function toReason(x) {
+		return { reason: x };
 	}
 
 	function noop() {}

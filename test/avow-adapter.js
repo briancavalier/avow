@@ -11,5 +11,6 @@ exports.pending = function() {
 
 	return pending;
 };
-exports.fulfilled = avow.from;
-exports.rejected = avow.rejected;
+
+exports.fulfilled = avow.lift;
+exports.rejected = avow.reject;
