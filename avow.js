@@ -4,9 +4,9 @@ define(function() {
 
 	var avow, nextTick, defaultConfig, undef;
 
-	// Use process.nextTick or setImmediate if available, fallback to setTimeout
-	nextTick = typeof process === 'object' ? process.nextTick
-		: typeof setImmediate === 'function' ? setImmediate
+	// Use setImmediate or process.nextTick if available, fallback to setTimeout
+  nextTick = typeof setImmediate === 'function' ? setImmediate
+    : typeof process === 'object' ? process.nextTick
 		: function(task) { setTimeout(task, 0); };
 
 	// Default configuration
@@ -147,7 +147,7 @@ define(function() {
 					result = handler(val);
 
 					if(result && typeof result.then === 'function') {
-						result.then(fulfillNext, rejectNext);
+            result.then(fulfillNext, rejectNext);
 					} else {
 						fulfillNext(result);
 					}
