@@ -16,8 +16,7 @@ define(function() {
 	reduce = uncurryThis(arrayProto.reduce);
 	map = uncurryThis(arrayProto.map);
 
-	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
-	/*global setImmediate,process,vertx*/
+	// Account for vertx timers
 	if(typeof vertx === 'object') {
 		setTimeout = function (f, ms) { return vertx.setTimer(ms, f); };
 		clearTimeout = vertx.cancelTimer;
@@ -212,9 +211,9 @@ define(function() {
 			});
 		}
 
-		// Return a promise that will fulfill with an array of objects, each
-		// with a 'value' or 'reason' property corresponding to the fulfillment
-		// value or rejection reason of the
+		// Return a promise that will fulfill with an array of objects, each with
+		// a 'value' or 'reason' property corresponding to the fulfillment value
+		// or rejection reason of the promise at the same index in the input array
 		function settle(array) {
 			return lift(array).then(function(array) {
 				return all(map(array, function(item) {
