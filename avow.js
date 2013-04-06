@@ -70,8 +70,8 @@ define(function() {
 		promise.any      = any;
 		promise.settle   = settle;
 
+		promise.fmap     = fmap;
 		promise.fmapWith = fmapWith;
-		promise.fmap     = bind(fmapWith, promise, identity);
 
 		promise.delay    = delay;
 		promise.timeout  = timeout;
@@ -228,14 +228,21 @@ define(function() {
 
 		// Returns a function that accepts promises as arguments and
 		// returns a promise.  fcall is used to invoke f in
-		function fmapWith(fmapper, f) {
-			f = fmapper(f);
+		// var promiseAwareF = avow.lift(f);
+		function fmap(f) {
 			return function() {
 				var self = this;
 				return all(arguments).then(function(args) {
 					return apply(f, self, args);
 				});
 			};
+		}
+
+		// Uses the provide fmapper to handle mapping f to a function
+		// that returns a promise.
+		// var promisedReadFile = avow.fmapWith(adaptNodeStyleFunction, fs.readFile)
+		function fmapWith(fmapper, f) {
+			return fmap(fmapper(f));
 		}
 
 		// Timed promises
