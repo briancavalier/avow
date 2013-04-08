@@ -15,7 +15,7 @@ Yes, but you shouldn't.  You should try [when.js](https://github.com/cujojs/when
 
 ## *Should* I use it?
 
-Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning like I did.  You're on your own.
+Again, probably not.  I have no plans to support it in any way.  I'll probably change the API without warning like I did from 1.0.0 to 2.0.0.  You're on your own.
 
 ## Ok, ok, if you want to try it out
 
