@@ -3,7 +3,7 @@
 define(function() {
 
 	var avow, enqueue, defaultConfig, setTimer, clearTimer,
-		bind, uncurryThis, call, apply, arrayProto, reduce, map,
+		bind, uncurryThis, call, apply, arrayProto, reduce, map, slice,
 		undef;
 
 	bind = Function.prototype.bind;
@@ -16,6 +16,7 @@ define(function() {
 	arrayProto = [];
 	reduce = uncurryThis(arrayProto.reduce);
 	map = uncurryThis(arrayProto.map);
+	slice = uncurryThis(arrayProto.slice);
 
 	// Account for vertx timers
 	if(typeof vertx === 'object') {
@@ -241,8 +242,17 @@ define(function() {
 		// Uses the provide fmapper to handle mapping f to a function
 		// that returns a promise.
 		// var promisedReadFile = avow.fmapWith(adaptNodeStyleFunction, fs.readFile)
+		// fmapper must return a new function that has the signature
+		// function(resolve, reject, fArgs), calls f with fArgs, and arranges
+		// for resolve or reject to be called with f's result
 		function fmapWith(fmapper, f) {
-			return fmap(fmapper(f));
+			f = fmapper(f);
+			return fmap(function() {
+				var self = this, args = slice(arguments);
+				return promise(function(resolve, reject) {
+					call(f, self, resolve, reject, args);
+				});
+			});
 		}
 
 		// Timed promises
