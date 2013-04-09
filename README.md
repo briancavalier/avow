@@ -63,7 +63,7 @@ var myAvow = require('avow').construct(options);
 
 Where `options` is an object that can have any of the following properties:
 
-* `nextTick` - specify your own nextTick function
+* `enqueue` - specify your own nextTick function
 * `unhandled` - callback to be notified when a promise becomes rejected, but has no rejection handler.
 * `handled` - callback to be notified if, at some point, a previously unhandled rejected promise become handled.  Since promises are temporal, this can happen if a consumer adds a rejection handler using `then()` at some point after the promise has been rejected.
 * `protect` - function that is called on every promise avow creates, to give you a chance to protect it, e.g. by supplying Object.freeze() here.
