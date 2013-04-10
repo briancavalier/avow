@@ -1,8 +1,8 @@
 {
 	"name": "avow",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Example Promises/A+ implementation. Simple, tiny, fast, fully async",
-	"keywords": ["promise", "promises", "async", "asynchronous", "deferred"],
+	"keywords": ["promise", "promises", "promises-aplus", "Promises/A+", "async", "asynchronous", "deferred"],
 	"contributors": {
 		"name": "Brian Cavalier",
 		"email": "brian@hovercraftstudios.com"

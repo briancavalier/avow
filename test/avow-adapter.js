@@ -1,4 +1,4 @@
-/*jshint es5:true*/
+/* Copyright (c) 2012-2013 Brian Cavalier */
 var avow = require('../avow');
 
 exports.pending = function() {
@@ -11,5 +11,5 @@ exports.pending = function() {
 
 	return pending;
 };
-exports.fulfilled = avow.from;
-exports.rejected = avow.rejected;
+exports.fulfilled = avow.lift;
+exports.rejected = avow.reject;

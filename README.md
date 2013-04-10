@@ -75,6 +75,11 @@ Where `options` is an object that can have any of the following properties:
 
 ## Changelog
 
+### 2.0.1
+
+* Dodge Mocha `process` global
+* Fix typo in Promises/A+ test adapter. Test results not affect.
+
 ### 2.0.0
 
 * New API (I warned you!)
