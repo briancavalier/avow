@@ -164,7 +164,10 @@ define(function() {
 						var untrustedThen = x.then;
 
 						if(typeof untrustedThen === 'function') {
-							call(untrustedThen, x, resolve, reject);
+							// Prevent thenable self-cycles
+							call(untrustedThen, x, function(result) {
+								resolve(result === x ? fulfilled(x) : result);
+							}, reject);
 						} else {
 							// It's a value, create a fulfilled wrapper
 							resolve(fulfilled(x));
