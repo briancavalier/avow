@@ -45,17 +45,24 @@ define(function() {
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
 
-		// Add lift and reject methods.
-		promise.lift    = lift;
+		promise.of      = of;
+		promise.from    = from;
 		promise.reject  = reject;
 
 		return promise;
+
+		// Return a trusted promise for x
+		function of(x) {
+			return promise(function(resolve) {
+				resolve(fulfilled(x));
+			});
+		}
 
 		// Return a trusted promise for x.  Where if x is a
 		// - Promise, return it
 		// - value, return a promise that will eventually fulfill with x
 		// - thenable, assimilate it and return a promise whose fate follows that of x.
-		function lift(x) {
+		function from(x) {
 			return promise(function(resolve) {
 				resolve(x);
 			});
@@ -164,7 +171,10 @@ define(function() {
 						var untrustedThen = x.then;
 
 						if(typeof untrustedThen === 'function') {
-							call(untrustedThen, x, resolve, reject);
+							// Prevent thenable self-cycles
+							call(untrustedThen, x, function(result) {
+								resolve(result === x ? fulfilled(x) : result);
+							}, reject);
 						} else {
 							// It's a value, create a fulfilled wrapper
 							resolve(fulfilled(x));
