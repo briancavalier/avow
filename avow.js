@@ -45,13 +45,20 @@ define(function() {
 		onUnhandled = config.unhandled || defaultConfig.unhandled;
 		protect     = config.protect   || defaultConfig.protect;
 
-		promise.of      = of;
+		// Fantasy-Land related stuff
+		Promise.of = promise.of = of;
+		Promise.prototype.chain = function(f) {
+			return this.then(function(x) {
+				return of(f(x));
+			});
+		};
+
 		promise.from    = from;
 		promise.reject  = reject;
 
 		return promise;
 
-		// Return a trusted promise for x
+		// Return a trusted promise for x, verbatim
 		function of(x) {
 			return promise(function(resolve) {
 				resolve(fulfilled(x));
