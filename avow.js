@@ -92,15 +92,14 @@ define(function() {
 				}
 
 				return promise(function(resolve, reject) {
-					handlers
-						// Call handlers later, after resolution
-						? handlers.push(function(value) {
-							value.then(onFulfilled, onRejected).then(resolve, reject);
-						})
-						// Call handlers soon, but not in the current stack
-						: enqueue(function() {
-							value.then(onFulfilled, onRejected).then(resolve, reject);
-						});
+					handlers ?
+						handlers.push(run)
+						: enqueue(function() { run(value); });
+
+					function run(p) {
+						return coerce(p.then(onFulfilled, onRejected))
+							.then(resolve, reject);
+					}
 				});
 			}
 
@@ -110,7 +109,7 @@ define(function() {
 					return;
 				}
 
-				resolve(coerce(value));
+				resolve(value);
 			}
 
 			// Reject with reason verbatim
@@ -130,9 +129,9 @@ define(function() {
 			function resolve(x) {
 				var queue = handlers;
 				handlers = undef;
-				value = x;
 
-				enqueue(function () {
+				enqueue(function() {
+					value = coerce(x);
 					queue.forEach(function (handler) {
 						handler(value);
 					});
@@ -149,6 +148,7 @@ define(function() {
 		}
 
 		// Coerce x to a promise
+		// Must never be called in the current tick
 		function coerce(x) {
 			if(x instanceof Promise) {
 				return x;
@@ -157,26 +157,16 @@ define(function() {
 			}
 
 			return promise(function(resolve, reject) {
-				enqueue(function() {
-					try {
-						// We must check and assimilate in the same tick, but not the
-						// current tick, careful only to access promiseOrValue.then once.
-						var untrustedThen = x.then;
+				// We must check and assimilate in the same tick, but not the
+				// current tick, careful only to access promiseOrValue.then once.
+				var untrustedThen = x.then;
 
-						if(typeof untrustedThen === 'function') {
-							// Prevent thenable self-cycles
-							call(untrustedThen, x, function(result) {
-								resolve(result === x ? fulfilled(x) : result);
-							}, reject);
-						} else {
-							// It's a value, create a fulfilled wrapper
-							resolve(fulfilled(x));
-						}
-					} catch(e) {
-						// Something went wrong, reject
-						reject(e);
-					}
-				});
+				if(typeof untrustedThen === 'function') {
+					call(untrustedThen, x, resolve, reject);
+				} else {
+					// It's a value, create a fulfilled wrapper
+					resolve(fulfilled(x));
+				}
 			});
 		}
 
@@ -185,7 +175,7 @@ define(function() {
 			var self = new Promise(function (onFulfilled) {
 				try {
 					return typeof onFulfilled == 'function'
-						? coerce(onFulfilled(x)) : self;
+						? onFulfilled(x) : self;
 				} catch (e) {
 					return rejected(e);
 				}
@@ -199,7 +189,7 @@ define(function() {
 			var self = new Promise(function (_, onRejected) {
 				try {
 					return typeof onRejected == 'function'
-						? coerce(onRejected(x)) : self;
+						? onRejected(x) : self;
 				} catch (e) {
 					return rejected(e);
 				}
