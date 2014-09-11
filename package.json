@@ -1,10 +1,10 @@
 {
 	"name": "avow",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"description": "Example Promises/A+ implementation. Simple, tiny, fast, fully async",
 	"repository": {
-		type: "git",
-		url: "git@github.com:briancavalier/avow.git"
+		"type": "git",
+		"url": "git@github.com:briancavalier/avow.git"
 	},
 	"keywords": ["promise", "promises", "promises-aplus", "Promises/A+", "async", "asynchronous", "deferred"],
 	"author": {

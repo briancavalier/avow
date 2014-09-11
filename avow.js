@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013 Brian Cavalier */
+/* Copyright (c) 2012-2014 Brian Cavalier */
 (function(define, global) {
 define(function() {
 
