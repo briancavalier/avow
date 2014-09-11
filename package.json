@@ -13,7 +13,7 @@
 	},
 	"main": "avow",
 	"devDependencies": {
-		"promises-aplus-tests": "",
+		"promises-aplus-tests": "~1",
 		"jshint": "~1"
 	},
 	"scripts": {
