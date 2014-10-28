@@ -1,15 +1,24 @@
 /* Copyright (c) 2012-2013 Brian Cavalier */
 var avow = require('../avow');
 
-exports.pending = function() {
-	var pending = {};
+exports.deferred = function(){
+  var defer = {};
+  defer.promise = avow(function(resolve, reject) {
+	defer.resolve = resolve;
+	defer.reject = reject;
+  });
 
-	pending.promise = avow(function(resolve, reject) {
-		pending.fulfill = resolve;
-		pending.reject = reject;
-	});
-
-	return pending;
+  return defer;
 };
-exports.fulfilled = avow.lift;
-exports.rejected = avow.reject;
+
+exports.resolved = function(value) {
+  var defer = exports.deferred()
+  defer.resolve(value);
+  return defer.promise;
+},
+
+exports.rejected = function(reason) {
+  var defer = exports.deferred()
+  defer.reject(reason);
+  return defer.promise;
+}

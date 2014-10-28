@@ -13,8 +13,8 @@
 	},
 	"main": "avow",
 	"devDependencies": {
-		"promises-aplus-tests": "~1",
-		"jshint": "~1"
+		"promises-aplus-tests": "~2.1.0",
+		"jshint": "*"
 	},
 	"scripts": {
 		"test": "jshint . && promises-aplus-tests test/avow-adapter.js"
